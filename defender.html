@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title id="gameTitle">星际守卫战</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 返回游戏列表入口 -->
+  <a href="index.html" class="back-home">← 游戏列表</a>
+
+  <div id="gameContainer">
+    <!-- 开始界面 -->
+    <div id="startScreen" class="screen active">
+      <div class="logo-container">
+        <div class="logo-ring"></div>
+        <div class="logo-ring ring-2"></div>
+        <div class="logo-ring ring-3"></div>
+        <h1 id="mainTitle" class="glow-text" data-zh="星际守卫战" data-en="Space Defender">星际守卫战</h1>
+        <p id="subtitle" class="subtitle" data-zh="守护银河系" data-en="Protect the Galaxy">守护银河系</p>
+      </div>
+      <!-- 模式选择（按钮由 JS 按语言生成） -->
+      <div class="mode-select">
+        <h3 class="sub-title" data-zh="游戏模式" data-en="Game Mode">游戏模式</h3>
+        <div class="mode-grid" id="modeSelectGrid"></div>
+      </div>
+
+      <!-- 难度选择（按钮由 JS 按语言生成） -->
+      <div class="diff-select">
+        <h3 class="sub-title" data-zh="难度" data-en="Difficulty">难度</h3>
+        <div class="diff-row" id="diffSelectRow"></div>
+        <div id="diffDesc" class="diff-desc"></div>
+      </div>
+
+      <div class="menu-buttons">
+        <button id="btnStart" class="btn btn-primary" data-zh="开始游戏" data-en="Start Game">开始游戏</button>
+        <button id="btnHowTo" class="btn btn-secondary" data-zh="操作说明" data-en="How to Play">操作说明</button>
+        <button id="btnLang" class="btn btn-lang" data-zh="English" data-en="中文">中文</button>
+      </div>
+      <div id="highScoreDisplay" class="high-score">
+        <span id="hsIcon">★</span>
+        <span id="highScoreText" data-zh="最高分: 0" data-en="Best: 0">最高分: 0</span>
+      </div>
+      <!-- 当前模式+难度下的历史最佳 -->
+      <div id="modeRecord" class="mode-record"></div>
+    </div>
+
+    <!-- 操作说明 -->
+    <div id="howToScreen" class="screen">
+      <button id="btnBack1" class="btn-back" data-zh="← 返回" data-en="← Back">← 返回</button>
+      <h2 id="howToTitle" class="section-title" data-zh="操作说明" data-en="How to Play">操作说明</h2>
+      <div class="instructions">
+        <div class="inst-row">
+          <span class="inst-key" data-zh="鼠标/触屏" data-en="Mouse/Touch">鼠标/触屏</span>
+          <span class="inst-desc" data-zh="移动飞船" data-en="Move Ship">移动飞船</span>
+        </div>
+        <div class="inst-row">
+          <span class="inst-key" data-zh="点击/空格" data-en="Click/Space">点击/空格</span>
+          <span class="inst-desc" data-zh="射击（可按住连发）" data-en="Fire (hold to auto-fire)">射击（可按住连发）</span>
+        </div>
+        <div class="inst-row">
+          <span class="inst-key" data-zh="P / ESC" data-en="P / ESC">P / ESC</span>
+          <span class="inst-desc" data-zh="暂停游戏" data-en="Pause Game">暂停游戏</span>
+        </div>
+      </div>
+      <div class="enemy-info">
+        <h3 class="sub-title" data-zh="敌机 · 会开火，注意闪避" data-en="Enemies · They shoot back">敌机 · 会开火，注意闪避</h3>
+        <div class="enemy-grid">
+          <div class="enemy-card">
+            <div class="enemy-preview red"></div>
+            <span class="enemy-name" data-zh="侦察机 · 快 / 单发" data-en="Scout · Fast / 1-shot">侦察机 · 快 / 单发</span>
+          </div>
+          <div class="enemy-card">
+            <div class="enemy-preview blue"></div>
+            <span class="enemy-name" data-zh="突击机 · 三连发" data-en="Assault · 3-shot">突击机 · 三连发</span>
+          </div>
+          <div class="enemy-card">
+            <div class="enemy-preview purple"></div>
+            <span class="enemy-name" data-zh="母舰 · 五连扇射" data-en="Mothership · Fan">母舰 · 五连扇射</span>
+          </div>
+          <div class="enemy-card">
+            <div class="enemy-preview boss"></div>
+            <span class="enemy-name" data-zh="BOSS · 每 5 波" data-en="BOSS · every 5">BOSS · 每 5 波</span>
+          </div>
+        </div>
+        <h3 class="sub-title" data-zh="击落掉落 · 拾取即生效" data-en="Power-ups · Collect to use">击落掉落 · 拾取即生效</h3>
+        <div class="enemy-grid">
+          <div class="enemy-card">
+            <div class="enemy-preview gold"></div>
+            <span class="enemy-name" data-zh="散射 · 火力升级" data-en="Spread · Power Up">散射 · 火力升级</span>
+          </div>
+          <div class="enemy-card">
+            <div class="enemy-preview cyan"></div>
+            <span class="enemy-name" data-zh="护盾 · 抵挡一次" data-en="Shield · Block">护盾 · 抵挡一次</span>
+          </div>
+          <div class="enemy-card">
+            <div class="enemy-preview green"></div>
+            <span class="enemy-name" data-zh="维修 · 恢复船体" data-en="Repair · Heal">维修 · 恢复船体</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hud hidden">
+      <div class="hud-left">
+        <div class="score-panel">
+          <span class="score-label" data-zh="得分" data-en="Score">得分</span>
+          <span id="scoreValue" class="score-value">0</span>
+        </div>
+        <div class="level-panel">
+          <span id="levelLabel" class="level-label" data-zh="Wave" data-en="Wave">Wave</span>
+          <span id="levelValue" class="level-value">1</span>
+        </div>
+      </div>
+      <!-- 限时挑战倒计时（居中，仅限时模式显示） -->
+      <div id="timerPanel" class="timer-panel hidden">
+        <span class="timer-label" data-zh="剩余" data-en="TIME">剩余</span>
+        <span id="timerValue" class="timer-value">60</span>
+      </div>
+
+      <div class="hud-right">
+        <div class="hp-bar-container">
+          <div class="hp-label" data-zh="生命" data-en="HP">生命</div>
+          <div class="hp-bar-bg">
+            <div id="hpBar" class="hp-bar"></div>
+          </div>
+        </div>
+        <div id="comboDisplay" class="combo hidden">
+          <span class="combo-count" id="comboCount">0</span>
+          <span class="combo-text" data-zh="连击" data-en="COMBO">连击</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游戏画布 -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- 暂停界面 -->
+    <div id="pauseScreen" class="screen overlay">
+      <div class="pause-content">
+        <h2 id="pauseTitle" class="glow-text" data-zh="游戏暂停" data-en="PAUSED">游戏暂停</h2>
+        <button id="btnResume" class="btn btn-primary" data-zh="继续游戏" data-en="Resume">继续游戏</button>
+        <button id="btnRestartPause" class="btn btn-secondary" data-zh="重新开始" data-en="Restart">重新开始</button>
+        <button id="btnQuitPause" class="btn btn-quit" data-zh="返回主菜单" data-en="Main Menu">返回主菜单</button>
+      </div>
+    </div>
+
+    <!-- 结算界面 -->
+    <div id="gameOverScreen" class="screen overlay">
+      <div class="result-content">
+        <div id="newHighScore" class="new-record hidden">🏆 <span data-zh="新纪录！" data-en="NEW RECORD!">新纪录！</span></div>
+        <h2 id="goTitle" class="glow-text" data-zh="游戏结束" data-en="GAME OVER">游戏结束</h2>
+        <div class="result-stats">
+          <div class="stat-row">
+            <span class="stat-label" data-zh="最终得分" data-en="Final Score">最终得分</span>
+            <span id="finalScore" class="stat-value">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-zh="到达波次" data-en="Wave Reached">到达波次</span>
+            <span id="finalWave" class="stat-value">1</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-zh="击落敌机" data-en="Kills">击落敌机</span>
+            <span id="finalKills" class="stat-value">0</span>
+          </div>
+          <div class="stat-row hidden" id="rowSurvived">
+            <span class="stat-label" data-zh="存活时长" data-en="Survived">存活时长</span>
+            <span id="finalSurvived" class="stat-value">0</span>
+          </div>
+          <div class="stat-row hidden" id="rowModeBest">
+            <span class="stat-label" data-zh="本模式最佳" data-en="Mode Best">本模式最佳</span>
+            <span id="finalModeBest" class="stat-value">—</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-zh="最高连击" data-en="Max Combo">最高连击</span>
+            <span id="finalCombo" class="stat-value">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label" data-zh="最高分" data-en="Best Score">最高分</span>
+            <span id="bestScore" class="stat-value">0</span>
+          </div>
+        </div>
+        <div class="result-buttons">
+          <button id="btnRetry" class="btn btn-primary" data-zh="再来一局" data-en="Play Again">再来一局</button>
+          <button id="btnMenu" class="btn btn-secondary" data-zh="主菜单" data-en="Main Menu">主菜单</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 脚本错误提示：默认隐藏，仅在 game.js 出错(语法/运行时)时显示。 -->
+  <div id="errBox" style="display:none;position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#3a0d0d;color:#ffb4b4;border:1px solid #ff6b6b;border-radius:8px;padding:12px;font:13px/1.6 monospace;white-space:pre-wrap;"></div>
+  <script>
+    window.addEventListener("error", function (e) {
+      var b = document.getElementById("errBox");
+      if (!b) return;
+      b.style.display = "block";
+      b.textContent = "脚本错误：" + (e.message || "未知错误")
+        + "\n" + (e.filename || "") + "  第 " + (e.lineno || "?") + " 行";
+    });
+  </script>
+
+  <script src="game.js"></script>
+</body>
+</html>
