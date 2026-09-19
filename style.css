@@ -1,0 +1,104 @@
+/* ===== Reset & Base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; font-family: 'Segoe UI', Arial, sans-serif; color: #e0e6f0; }
+
+/* ===== Game Container ===== */
+#gameContainer { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0a0e1a 0%, #1a1f3a 100%); }
+
+/* ===== Canvas ===== */
+#gameCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+
+/* ===== Screens ===== */
+.screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; padding: 20px; }
+.screen.active { display: flex; }
+.screen.overlay { background: rgba(10, 14, 26, 0.85); backdrop-filter: blur(4px); }
+
+/* ===== Logo & Title ===== */
+.logo-container { text-align: center; margin-bottom: 40px; position: relative; }
+/* 装饰光环是 absolute 定位元素，默认会盖在同层的静态元素之上；
+   其直径(最大320px)远超容器高度，会遮住下方按钮并吞掉点击。
+   必须设 pointer-events:none 让它不参与命中测试。 */
+.logo-ring { position: absolute; top: 50%; left: 50%; width: 200px; height: 200px; transform: translate(-50%, -50%); border: 2px solid rgba(0, 212, 255, 0.3); border-radius: 50%; animation: rotate 10s linear infinite; pointer-events: none; }
+.logo-ring.ring-2 { width: 260px; height: 260px; border-color: rgba(0, 212, 255, 0.2); animation-duration: 15s; animation-direction: reverse; }
+.logo-ring.ring-3 { width: 320px; height: 320px; border-color: rgba(0, 212, 255, 0.1); animation-duration: 20s; }
+@keyframes rotate { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+.glow-text { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 700; color: #00d4ff; text-shadow: 0 0 20px rgba(0, 212, 255, 0.5), 0 0 40px rgba(0, 212, 255, 0.3); letter-spacing: 0.1em; }
+.subtitle { font-size: clamp(0.9rem, 2vw, 1.1rem); color: #8892b0; margin-top: 10px; }
+
+/* ===== Buttons ===== */
+/* 提升为定位元素并置顶，确保按钮始终位于 logo 装饰环之上（双保险） */
+.menu-buttons { display: flex; flex-direction: column; gap: 12px; width: 280px; position: relative; z-index: 2; }
+.btn { padding: 14px 24px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; text-align: center; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: linear-gradient(135deg, #00d4ff 0%, #0090ff 100%); color: #fff; box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3); }
+.btn-primary:hover { box-shadow: 0 6px 25px rgba(0, 212, 255, 0.5); }
+.btn-secondary { background: rgba(255, 255, 255, 0.1); color: #e0e6f0; border: 1px solid rgba(255, 255, 255, 0.2); }
+.btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+.btn-lang { background: transparent; color: #8892b0; border: 1px solid rgba(136, 146, 176, 0.3); }
+.btn-lang:hover { background: rgba(136, 146, 176, 0.1); color: #e0e6f0; }
+.btn-quit { background: rgba(255, 59, 48, 0.1); color: #ff3b30; border: 1px solid rgba(255, 59, 48, 0.3); }
+.btn-quit:hover { background: rgba(255, 59, 48, 0.2); }
+.btn-back { position: absolute; top: 20px; left: 20px; padding: 8px 16px; background: rgba(255, 255, 255, 0.1); color: #8892b0; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+.btn-back:hover { background: rgba(255, 255, 255, 0.15); color: #e0e6f0; }
+
+/* ===== High Score ===== */
+.high-score { margin-top: 30px; display: flex; align-items: center; gap: 8px; color: #ffd700; font-size: 1.1rem; }
+#hsIcon { font-size: 1.3rem; }
+
+/* ===== Instructions ===== */
+.section-title { font-size: 1.8rem; color: #00d4ff; margin-bottom: 20px; }
+.sub-title { font-size: 1.1rem; color: #8892b0; margin: 20px 0 10px; }
+.instructions { width: 100%; max-width: 400px; }
+.inst-row { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.inst-key { width: 120px; font-weight: 600; color: #00d4ff; font-size: 0.9rem; }
+.inst-desc { flex: 1; color: #8892b0; }
+.enemy-info { width: 100%; max-width: 500px; margin-top: 20px; }
+.enemy-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.enemy-card { display: flex; flex-direction: column; align-items: center; padding: 15px 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; }
+.enemy-preview { width: 40px; height: 40px; border-radius: 50% 50% 0 0; margin-bottom: 8px; }
+.enemy-preview.red { background: linear-gradient(135deg, #ff4444, #cc0000); }
+.enemy-preview.blue { background: linear-gradient(135deg, #4488ff, #0044cc); }
+.enemy-preview.purple { background: linear-gradient(135deg, #aa44ff, #6600cc); }
+.enemy-preview.boss { background: linear-gradient(135deg, #ff2244, #6a0010); box-shadow: 0 0 12px rgba(255, 34, 68, 0.6); }
+/* 道具图标为圆形 */
+.enemy-preview.gold  { background: linear-gradient(135deg, #ffd700, #a06a00); border-radius: 50%; }
+.enemy-preview.cyan  { background: linear-gradient(135deg, #00d4ff, #005f8a); border-radius: 50%; }
+.enemy-preview.green { background: linear-gradient(135deg, #00ff88, #007a44); border-radius: 50%; }
+.enemy-name { font-size: 0.8rem; color: #8892b0; text-align: center; }
+
+/* ===== HUD ===== */
+.hud { position: absolute; top: 0; left: 0; width: 100%; padding: 15px 20px; display: flex; justify-content: space-between; align-items: flex-start; z-index: 5; pointer-events: none; }
+.hud.hidden { display: none; }
+.hud-left, .hud-right { display: flex; flex-direction: column; gap: 10px; }
+.score-panel, .level-panel { display: flex; flex-direction: column; }
+.score-label, .level-label { font-size: 0.75rem; color: #8892b0; text-transform: uppercase; letter-spacing: 0.1em; }
+.score-value, .level-value { font-size: 1.8rem; font-weight: 700; color: #00d4ff; }
+.hp-bar-container { display: flex; flex-direction: column; gap: 5px; }
+.hp-label { font-size: 0.75rem; color: #8892b0; text-transform: uppercase; }
+.hp-bar-bg { width: 120px; height: 12px; background: rgba(255, 255, 255, 0.1); border-radius: 6px; overflow: hidden; }
+.hp-bar { height: 100%; background: linear-gradient(90deg, #00ff88, #00cc66); border-radius: 6px; transition: width 0.3s ease; }
+.combo { display: flex; flex-direction: column; align-items: center; }
+.combo.hidden { display: none; }
+.combo-count { font-size: 1.5rem; font-weight: 700; color: #ffd700; }
+.combo-text { font-size: 0.7rem; color: #8892b0; text-transform: uppercase; }
+
+/* ===== Pause & Result ===== */
+.pause-content, .result-content { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 400px; }
+.result-stats { width: 100%; }
+.stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.stat-label { color: #8892b0; }
+.stat-value { font-weight: 600; color: #00d4ff; }
+.new-record { font-size: 1.3rem; color: #ffd700; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.result-buttons { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.hidden { display: none !important; }
+
+/* ===== 说明页（内容较多，允许纵向滚动） ===== */
+#howToScreen { justify-content: flex-start; overflow-y: auto; padding-top: 64px; padding-bottom: 40px; }
+
+/* ===== Mobile ===== */
+@media (max-width: 600px) {
+  .menu-buttons { width: 240px; }
+  .enemy-grid { grid-template-columns: 1fr; }
+  .hp-bar-bg { width: 80px; }
+}
