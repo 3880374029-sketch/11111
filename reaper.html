@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D暗影收割者 · 末日围城</title>
+    <style>
+        :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+        html, body { width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; background: #000; touch-action: manipulation; position: fixed; }
+        canvas { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 999; background: #0a0a14; color: #fff; font-family: 'Courier New', monospace; font-size: 24px; }
+        .hud { position: fixed; z-index: 10; pointer-events: none; font-family: 'Courier New', monospace; color: #eee; text-shadow: 0 0 8px #000; }
+        #hud-tl { top: 16px; left: 16px; }
+        #hud-tr { top: 16px; right: 16px; text-align: right; font-size: 14px; }
+        .label { font-size: 12px; opacity: 0.8; letter-spacing: 0.05em; }
+        .bar-outer { width: 180px; height: 12px; background: rgba(0,0,0,0.6); border:1px solid #555; border-radius: 4px; margin: 4px 0; overflow: hidden; }
+        .bar-inner { height: 100%; transition: width 0.25s; }
+        #hp-bar-inner { background: linear-gradient(90deg, #e74c3c, #2ecc71); }
+        #exp-bar-inner { background: #f1c40f; }
+        #skill-bar-inner { background: #3498db; }
+        .fps-green { color: #2ecc71; } .fps-yellow { color: #f39c12; } .fps-red { color: #e74c3c; }
+        #joystick-zone { position: fixed; bottom: 30px; left: 30px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.06); border:2px solid rgba(255,255,255,0.2); z-index: 20; display: none; touch-action: none; }
+        #joystick-thumb { position: absolute; top:50%; left:50%; width:45%; height:45%; border-radius: 50%; background: rgba(255,255,255,0.3); transform: translate(-50%,-50%); }
+        @media (hover: none) and (pointer: coarse) { #joystick-zone { display: block; } }
+        .modal-overlay { position: fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        .modal-overlay.hidden { display: none; }
+        .modal-card { background: rgba(10,10,20,0.9); border:1px solid rgba(255,255,255,0.2); border-radius: 16px; padding: 24px; text-align: center; color: #ddd; font-family: 'Courier New', monospace; box-shadow: 0 0 40px rgba(0,0,0,0.8); max-width: 500px; }
+        .modal-card h2 { font-size: 22px; margin-bottom: 12px; }
+        .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .modal-card button { background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.35); color:#fff; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 14px; margin: 4px; }
+        .modal-card button:hover { background: rgba(255,255,255,0.22); }
+        .upgrade-options { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+        .upgrade-card { background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 16px 12px; cursor: pointer; min-width: 90px; transition: 0.2s; }
+        .upgrade-card:hover { background: rgba(255,255,255,0.18); transform: scale(1.05); }
+        .upgrade-card .icon { font-size: 28px; display: block; margin-bottom: 6px; }
+        #skill-hint { position: fixed; bottom: 30px; right: 30px; z-index: 10; pointer-events: none; color: #fff; font-family: 'Courier New', monospace; font-size: 14px; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 20px; }
+        .hero-card { display: inline-block; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 14px; margin: 8px; cursor: pointer; width: 120px; transition: 0.2s; }
+        .hero-card.selected { border-color: #f1c40f; background: rgba(255,255,255,0.15); }
+        .hero-card .hero-icon { font-size: 36px; display: block; }
+        .diff-btn, .mode-btn { background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.25); color:#fff; padding: 8px 16px; border-radius: 8px; margin: 4px; cursor: pointer; }
+        .diff-btn.selected, .mode-btn.selected { border-color: #f1c40f; background: rgba(255,255,255,0.2); }
+        #continue-btn { display: none; background: rgba(241,196,15,0.2); border-color: #f1c40f; }
+        #vehicle-hint { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10; pointer-events: none; color: #ff0; font-family: 'Courier New', monospace; font-size: 16px; background: rgba(0,0,0,0.7); padding: 4px 16px; border-radius: 20px; display: none; }
+        #shoot-hint { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 10; pointer-events: none; color: #aaa; font-family: 'Courier New', monospace; font-size: 14px; background: rgba(0,0,0,0.4); padding: 4px 16px; border-radius: 20px; display: block; }
+        #help-btn { position: fixed; bottom: 160px; right: 20px; z-index: 15; background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:#fff; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-family: 'Courier New', monospace; font-size: 12px; pointer-events: auto; }
+        #help-btn:hover { background: rgba(255,255,255,0.2); }
+        .help-content { text-align: left; padding: 10px; font-size: 14px; line-height: 1.8; }
+        .help-content kbd { background: #333; padding: 2px 8px; border-radius: 4px; color: #0f0; }
+    </style>
+</head>
+<body>
+    <div id="loading">加载中...</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="hud" id="hud-tl">
+        <span class="label">生命</span>
+        <div class="bar-outer"><div class="bar-inner" id="hp-bar-inner"></div></div>
+        <span class="label">Lv <span id="hud-lv">1</span> | EXP</span>
+        <div class="bar-outer"><div class="bar-inner" id="exp-bar-inner"></div></div>
+        <span class="label">技能充能</span>
+        <div class="bar-outer"><div class="bar-inner" id="skill-bar-inner" style="width:0%"></div></div>
+    </div>
+    <div class="hud" id="hud-tr">
+        <div>击杀 <span id="hud-kills">0</span></div>
+        <div>时间 <span id="hud-time">00:00</span></div>
+        <div>难度 <span id="hud-diff">1</span></div>
+        <div id="fps-display" class="fps-green">FPS: 60</div>
+    </div>
+
+    <div id="joystick-zone"><div id="joystick-thumb"></div></div>
+    <div id="skill-hint">? 技能就绪 [空格]</div>
+    <div id="vehicle-hint">按 F 上车</div>
+    <div id="shoot-hint">??? 左键 / 点击屏幕 射击</div>
+    <button id="help-btn">?? 玩法</button>
+
+    <div id="main-menu" class="modal-overlay">
+        <div class="modal-card" style="max-width:700px;">
+            <h2>?? 末日围城</h2>
+            <div id="hero-select" style="display:flex; justify-content:center; flex-wrap:wrap;"></div>
+            <div style="margin:12px 0;"><span class="label">难度：</span>
+                <button class="diff-btn" data-diff="0">简单</button>
+                <button class="diff-btn selected" data-diff="1">普通</button>
+                <button class="diff-btn" data-diff="2">困难</button>
+            </div>
+            <div style="margin:12px 0;"><span class="label">模式：</span>
+                <button class="mode-btn selected" data-mode="survival">生存</button>
+                <button class="mode-btn" data-mode="rush">狂潮(3分钟)</button>
+            </div>
+            <button id="btn-start-game" style="margin-top:10px; font-size:18px; padding:12px 32px;">?? 开始战斗</button>
+            <button id="continue-btn" style="margin-top:10px; font-size:16px; padding:10px 24px;">?? 继续上次冒险</button>
+            <div style="margin-top:12px; font-size:13px; opacity:0.7;">按 <kbd>H</kbd> 查看玩法说明</div>
+        </div>
+    </div>
+
+    <div id="upgrade-modal" class="modal-overlay hidden">
+        <div class="modal-card"><h2>?? 力量升华</h2><div class="upgrade-options" id="upgrade-options-container"></div></div>
+    </div>
+
+    <div id="gameover-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="background:rgba(20,0,0,0.95);border-color:#e74c3c;">
+            <h2>?? 你倒下了</h2><p>击杀: <span id="go-kills">0</span></p><p>存活: <span id="go-time">00:00</span></p><p>难度: <span id="go-diff">1</span></p>
+            <button id="btn-restart" style="margin-top:16px;">?? 返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 玩法说明弹窗 -->
+    <div id="help-modal" class="modal-overlay hidden">
+        <div class="modal-card" style="max-width: 550px; text-align: left;">
+            <h2 style="text-align:center;">?? 玩法说明</h2>
+            <div class="help-content">
+                <p><kbd>W/A/S/D</kbd> 或 <kbd>方向键</kbd> 移动角色</p>
+                <p><kbd>鼠标左键</kbd> (或点击屏幕) 射击最近敌人</p>
+                <p><kbd>空格</kbd> 释放范围技能 (充能满时)</p>
+                <p><kbd>F</kbd> 靠近载具时上车/下车</p>
+                <p>?? 击杀敌人获得经验，升级可强化能力</p>
+                <p>?? 拾取绿色宝石获得经验，红色宝石恢复生命</p>
+                <p>?? 技能充能条满后可按空格释放AOE伤害</p>
+                <p>?? 不同英雄有不同属性，选择适合你的风格</p>
+                <p style="margin-top:8px; color:#aaa; font-size:13px;">提示：移动端使用左下角摇杆，点击屏幕射击</p>
+            </div>
+            <button id="help-close" style="margin-top:12px; display:block; width:100%;">我知道了</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script>
+        if (typeof THREE === 'undefined') document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');
+    </script>
+
+    <script>
+        (function() {
+            'use strict';
+            if (typeof THREE === 'undefined') { document.getElementById('loading').textContent = 'Three.js加载失败，请刷新'; return; }
+
+            // ---------- 常量 ----------
+            const FIXED_STEP = 1/60, MAX_DELTA = 0.1, WORLD = 100;
+            const POOL_BULLETS = 400, POOL_ENEMIES = 300, POOL_PARTICLES = 1200, POOL_DAMAGE = 200, POOL_GEMS = 400;
+            const SAVE_KEY = 'z3d_survivor_v4';
+
+            // ---------- DOM ----------
+            const canvas = document.getElementById('gameCanvas');
+            const hpBar = document.getElementById('hp-bar-inner');
+            const expBar = document.getElementById('exp-bar-inner');
+            const skillBar = document.getElementById('skill-bar-inner');
+            const hudLv = document.getElementById('hud-lv');
+            const hudKills = document.getElementById('hud-kills');
+            const hudTime = document.getElementById('hud-time');
+            const hudDiff = document.getElementById('hud-diff');
+            const fpsEl = document.getElementById('fps-display');
+            const skillHint = document.getElementById('skill-hint');
+            const vehicleHint = document.getElementById('vehicle-hint');
+            const shootHint = document.getElementById('shoot-hint');
+            const helpBtn = document.getElementById('help-btn');
+            const helpModal = document.getElementById('help-modal');
+            const helpClose = document.getElementById('help-close');
+            const joystickZone = document.getElementById('joystick-zone');
+            const joystickThumb = document.getElementById('joystick-thumb');
+            const upgradeModal = document.getElementById('upgrade-modal');
+            const upgradeContainer = document.getElementById('upgrade-options-container');
+            const gameoverModal = document.getElementById('gameover-modal');
+            const goKills = document.getElementById('go-kills');
+            const goTime = document.getElementById('go-time');
+            const goDiff = document.getElementById('go-diff');
+            const btnRestart = document.getElementById('btn-restart');
+            const mainMenu = document.getElementById('main-menu');
+            const continueBtn = document.getElementById('continue-btn');
+            const loadingEl = document.getElementById('loading');
+
+            // ---------- Three.js 初始化 ----------
+            const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a14);
+            scene.fog = new THREE.FogExp2(0x0a0a14, 0.00035);
+            const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 1, 150);
+            camera.position.set(0, 28, 22);
+
+            // ---------- 光照 ----------
+            const ambient = new THREE.AmbientLight(0x303060, 0.6);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffeedd, 1.0);
+            sun.position.set(30, 40, 20);
+            sun.castShadow = true;
+            sun.shadow.mapSize.set(2048, 2048);
+            sun.shadow.camera.near = 1;
+            sun.shadow.camera.far = 100;
+            sun.shadow.camera.left = -50;
+            sun.shadow.camera.right = 50;
+            sun.shadow.camera.top = 50;
+            sun.shadow.camera.bottom = -50;
+            scene.add(sun);
+            const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+            fillLight.position.set(-20, 20, -30);
+            scene.add(fillLight);
+            const playerLight = new THREE.PointLight(0x44ff88, 1.2, 20);
+            scene.add(playerLight);
+
+            // ---------- 地面高度计算 ----------
+            function getGroundHeight(x, z) {
+                return (Math.sin(x * 0.25) * Math.cos(z * 0.28) * 2.8 + Math.sin(x * 0.7 + z * 0.5) * 0.6 + 0.5);
+            }
+            function getGroundY(x, z) {
+                return getGroundHeight(x, z) - 2.2;
+            }
+
+            // ---------- 地图与障碍物 ----------
+            const mapGroup = new THREE.Group();
+            scene.add(mapGroup);
+            const obstacles = [];
+
+            // ---- 地面 ----
+            const groundGeo = new THREE.PlaneGeometry(WORLD, WORLD, 80, 80);
+            groundGeo.rotateX(-Math.PI / 2);
+            const posAttr = groundGeo.attributes.position;
+            const array = posAttr.array;
+            for (let i = 0; i < array.length; i += 3) {
+                const x = array[i];
+                const z = array[i + 2];
+                array[i + 1] = getGroundHeight(x, z) - 2.2;
+            }
+            posAttr.needsUpdate = true;
+            groundGeo.computeVertexNormals();
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x1a1a2e,
+                roughness: 0.9,
+                metalness: 0.1,
+                side: THREE.DoubleSide
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.receiveShadow = true;
+            mapGroup.add(ground);
+
+            const gridHelper = new THREE.GridHelper(WORLD, 40, 0x444488, 0x222244);
+            gridHelper.position.y = -2.2;
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.2;
+            mapGroup.add(gridHelper);
+
+            // ---- 树木与废墟 (略，保持简洁) ----
+            function addTree(x, z) {
+                const group = new THREE.Group();
+                const yBase = getGroundY(x, z);
+                const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.9 });
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, 3.0, 12, 4), trunkMat);
+                trunk.position.set(0, yBase + 1.5, 0);
+                trunk.castShadow = true;
+                group.add(trunk);
+                for (let i = 0; i < 6; i++) {
+                    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.14, 0.7 + Math.random()*0.5, 6, 2), trunkMat);
+                    const ang = Math.random() * Math.PI * 2;
+                    const tilt = 0.4 + Math.random() * 0.6;
+                    b.position.set(Math.cos(ang)*0.4, yBase + 1.0 + Math.random()*1.2, Math.sin(ang)*0.4);
+                    b.rotation.set(tilt*0.4, ang, tilt*0.6);
+                    b.castShadow = true;
+                    group.add(b);
+                }
+                const leafMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.8 });
+                const leafMat2 = new THREE.MeshStandardMaterial({ color: 0x3a6a34, roughness: 0.8 });
+                const crown1 = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 10), leafMat);
+                crown1.position.set(0, yBase + 3.2, 0);
+                crown1.scale.set(1, 0.8, 1);
+                crown1.castShadow = true;
+                group.add(crown1);
+                const crown2 = new THREE.Mesh(new THREE.SphereGeometry(0.7, 10, 10), leafMat2);
+                crown2.position.set(0.4, yBase + 3.8, 0.3);
+                crown2.scale.set(1, 0.7, 1);
+                crown2.castShadow = true;
+                group.add(crown2);
+                const crown3 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 10, 10), leafMat);
+                crown3.position.set(-0.3, yBase + 4.2, -0.2);
+                crown3.scale.set(1, 0.7, 1);
+                crown3.castShadow = true;
+                group.add(crown3);
+                group.position.set(x, 0, z);
+                mapGroup.add(group);
+                obstacles.push({ pos: new THREE.Vector3(x, 0, z), radius: 1.8 });
+            }
+
+            function addRuin(x, z) {
+                const group = new THREE.Group();
+                const yBase = getGroundY(x, z);
+                const stoneMat = new THREE.MeshStandardMaterial({ color: 0x666677, roughness: 0.9, metalness: 0.1 });
+                const wall = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2 + Math.random()*0.8, 0.8, 2, 2, 2), stoneMat);
+                wall.position.set(0, yBase + 0.6 + Math.random()*0.4, 0);
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                group.add(wall);
+                const wall2 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5 + Math.random()*0.5, 0.8, 2, 2, 2), stoneMat);
+                wall2.position.set(1.0 + Math.random()*0.3, yBase + 0.3, 0.4 + Math.random()*0.3);
+                wall2.castShadow = true;
+                group.add(wall2);
+                const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 1.8 + Math.random()*0.6, 10), stoneMat);
+                pillar.position.set(-0.9 + Math.random()*0.2, yBase + 0.9 + Math.random()*0.3, -0.5 + Math.random()*0.3);
+                pillar.castShadow = true;
+                group.add(pillar);
+                const rubbleMat = new THREE.MeshStandardMaterial({ color: 0x777788, roughness: 0.9 });
+                for (let i=0; i<5; i++) {
+                    const r = new THREE.Mesh(new THREE.SphereGeometry(0.1 + Math.random()*0.2, 6, 6), rubbleMat);
+                    r.position.set((Math.random()-0.5)*1.4, yBase + 0.05 + Math.random()*0.15, (Math.random()-0.5)*1.4);
+                    r.scale.set(1, 0.6 + Math.random()*0.4, 1);
+                    r.castShadow = true;
+                    group.add(r);
+                }
+                group.position.set(x, 0, z);
+                mapGroup.add(group);
+                obstacles.push({ pos: new THREE.Vector3(x, 0, z), radius: 1.8 });
+            }
+
+            for (let i=0; i<70; i++) {
+                const angle = Math.random()*Math.PI*2, dist = 8 + Math.random()*40;
+                const x = Math.cos(angle)*dist, z = Math.sin(angle)*dist;
+                if (Math.random()<0.5) addTree(x, z);
+                else addRuin(x, z);
+            }
+
+            // 边界墙
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.7, metalness: 0.2 });
+            const wallGeo = new THREE.BoxGeometry(0.5, 3.0, WORLD);
+            for (let i=0; i<4; i++) {
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.position.y = -2.2 + 1.5;
+                wall.receiveShadow = true;
+                wall.castShadow = true;
+                if (i<2) { wall.position.x = (i===0?1:-1)*WORLD/2; wall.position.z=0; }
+                else { wall.position.z = (i===2?1:-1)*WORLD/2; wall.position.x=0; wall.rotation.y=Math.PI/2; }
+                mapGroup.add(wall);
+            }
+
+            // 星空
+            const starsGeo = new THREE.BufferGeometry();
+            const starsPos = new Float32Array(1000*3);
+            const starsCol = new Float32Array(1000*3);
+            for (let i=0; i<1000; i++) {
+                const theta = Math.random()*Math.PI*2;
+                const phi = Math.acos(2*Math.random()-1);
+                const r = 60 + Math.random()*40;
+                starsPos[i*3] = r*Math.sin(phi)*Math.cos(theta);
+                starsPos[i*3+1] = Math.abs(r*Math.cos(phi)) + 5;
+                starsPos[i*3+2] = r*Math.sin(phi)*Math.sin(theta);
+                const b = 0.5 + Math.random()*0.5;
+                starsCol[i*3] = 0.8*b;
+                starsCol[i*3+1] = 0.8*b;
+                starsCol[i*3+2] = 1.0*b;
+            }
+            starsGeo.setAttribute('position', new THREE.BufferAttribute(starsPos,3));
+            starsGeo.setAttribute('color', new THREE.BufferAttribute(starsCol,3));
+            const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ size:0.35, vertexColors:true, blending:THREE.AdditiveBlending, transparent:true, opacity:0.8 }));
+            scene.add(stars);
+
+            // ---------- 英雄定义 ----------
+            const heroDefs = [
+                { id:'warrior', name:'战魂', icon:'??', color:0xe74c3c, hp:14, dmg:1.4, spd:5.0, armor:2, atkSpd:0.34, desc:'重甲近战' },
+                { id:'ranger', name:'影刃', icon:'??', color:0x2ecc71, hp:8, dmg:1.1, spd:8.0, armor:0, atkSpd:0.20, desc:'极速射手' },
+                { id:'tech', name:'技师', icon:'??', color:0x3498db, hp:10, dmg:0.95, spd:6.5, armor:0, atkSpd:0.26, desc:'技能充能快' },
+                { id:'assassin', name:'暗影', icon:'???', color:0x9b59b6, hp:9, dmg:1.6, spd:7.0, armor:0, atkSpd:0.24, desc:'高暴击伤害' },
+                { id:'medic', name:'军医', icon:'??', color:0xf1c40f, hp:12, dmg:0.9, spd:5.8, armor:1, atkSpd:0.30, desc:'击杀回血' }
+            ];
+            let selectedHero = heroDefs[0], selectedDiff = 1, selectedMode = 'survival';
+
+            // ============================================================
+            //  ★★★ 超精细英雄模型 (全仿生, 圆润, 高精度) ★★★
+            // ============================================================
+            function createHeroModel(hero) {
+                const group = new THREE.Group();
+                const col = hero.color;
+                const skin = 0xf0d5b0;
+                const darkSkin = 0xdbb894;
+                const seg = 16; // 高分段
+
+                // ---- 躯干 ----
+                const torsoMat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.3, metalness: 0.2 });
+                const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.58, 1.1, seg, 8), torsoMat);
+                torso.position.y = 0.9;
+                torso.castShadow = true;
+                group.add(torso);
+                // 胸肌 (球体)
+                const chestMat = new THREE.MeshStandardMaterial({ color: 0xcc8866, roughness: 0.4 });
+                for (let s of [-1,1]) {
+                    const pec = new THREE.Mesh(new THREE.SphereGeometry(0.20, 12, 12), chestMat);
+                    pec.position.set(s*0.24, 1.08, 0.48);
+                    pec.scale.set(1, 0.7, 0.5);
+                    group.add(pec);
+                }
+                // 腹肌
+                const absMat = new THREE.MeshStandardMaterial({ color: 0xbbaa99, roughness: 0.5 });
+                for (let i=0; i<4; i++) {
+                    const ab = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.08, 2,1,2), absMat);
+                    ab.position.set(0, 0.78 - i*0.10, 0.46);
+                    group.add(ab);
+                }
+                // 腰带
+                const beltMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.7 });
+                const belt = new THREE.Mesh(new THREE.TorusGeometry(0.50, 0.08, 12, 24), beltMat);
+                belt.rotation.x = Math.PI/2;
+                belt.position.y = 0.55;
+                group.add(belt);
+
+                // ---- 头部 ----
+                const headMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.3 });
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.34, seg, seg), headMat);
+                head.position.y = 1.62;
+                head.castShadow = true;
+                group.add(head);
+                const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), headMat);
+                jaw.position.set(0, 1.40, 0.32);
+                jaw.scale.set(0.9, 0.6, 0.8);
+                group.add(jaw);
+                // 眼睛
+                const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                const pupilMat = new THREE.MeshStandardMaterial({ color: 0x111122 });
+                for (let side of [-1,1]) {
+                    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), eyeMat);
+                    eye.position.set(side*0.14, 1.64, 0.34);
+                    group.add(eye);
+                    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 10), pupilMat);
+                    pupil.position.set(side*0.16, 1.62, 0.38);
+                    group.add(pupil);
+                }
+                // 眉毛
+                const browMat = new THREE.MeshStandardMaterial({ color: 0x332211 });
+                for (let side of [-1,1]) {
+                    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.04, 2,1,2), browMat);
+                    brow.position.set(side*0.13, 1.70, 0.35);
+                    brow.rotation.z = side*0.15;
+                    group.add(brow);
+                }
+                // 嘴巴
+                const mouthMat = new THREE.MeshStandardMaterial({ color: 0xcc8888 });
+                const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.02, 8, 16), mouthMat);
+                mouth.rotation.x = Math.PI/2 + 0.15;
+                mouth.position.set(0, 1.50, 0.36);
+                group.add(mouth);
+                // 鼻子
+                const nose = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), new THREE.MeshStandardMaterial({ color: 0xddbbaa }));
+                nose.position.set(0, 1.57, 0.42);
+                group.add(nose);
+
+                // ---- 头发/头盔 ----
+                if (hero.id === 'warrior') {
+                    const helmMat = new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.3, metalness: 0.7 });
+                    const helm = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.40, 0.38, seg, 6), helmMat);
+                    helm.position.y = 1.86;
+                    helm.castShadow = true;
+                    group.add(helm);
+                    const crest = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.28, 2,4,2), new THREE.MeshStandardMaterial({ color: 0xff3333 }));
+                    crest.position.set(0, 2.06, 0.16);
+                    group.add(crest);
+                } else if (hero.id === 'ranger') {
+                    const hatMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.8 });
+                    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.40, 0.65, seg), hatMat);
+                    hat.position.y = 2.00;
+                    hat.castShadow = true;
+                    group.add(hat);
+                    const brim = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.05, 10, 20), hatMat);
+                    brim.position.y = 1.74;
+                    group.add(brim);
+                } else if (hero.id === 'tech') {
+                    const gogMat = new THREE.MeshStandardMaterial({ color: 0x00ccff, emissive: 0x004466, emissiveIntensity: 0.3 });
+                    const gog = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.06, 10, 20), gogMat);
+                    gog.position.set(0, 1.65, 0.32);
+                    group.add(gog);
+                    const gog2 = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.06, 10, 20), gogMat);
+                    gog2.position.set(0, 1.65, 0.24);
+                    group.add(gog2);
+                    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.025, 0.28, 6), new THREE.MeshStandardMaterial({ color: 0x888888 }));
+                    ant.position.set(0.13, 1.92, 0.26);
+                    group.add(ant);
+                } else if (hero.id === 'assassin') {
+                    const maskMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.3 });
+                    const mask = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.30, 0.08, 4,4,2), maskMat);
+                    mask.position.set(0, 1.60, 0.34);
+                    group.add(mask);
+                    const redMat = new THREE.MeshStandardMaterial({ color: 0xff2244, emissive: 0xff0022, emissiveIntensity: 0.2 });
+                    const eyeLine = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.01, 2,1,2), redMat);
+                    eyeLine.position.set(0, 1.62, 0.38);
+                    group.add(eyeLine);
+                } else if (hero.id === 'medic') {
+                    const capMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+                    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.36, seg, 8), capMat);
+                    cap.scale.set(1, 0.35, 1);
+                    cap.position.y = 1.88;
+                    group.add(cap);
+                    const cross = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04, 2,1,2), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+                    cross.position.set(0.16, 1.88, 0.28);
+                    group.add(cross);
+                    const cross2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.04, 2,1,2), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+                    cross2.position.set(0.16, 1.88, 0.28);
+                    group.add(cross2);
+                }
+
+                // 颈部
+                const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.16, 10, 4), new THREE.MeshStandardMaterial({ color: skin }));
+                neck.position.y = 1.38;
+                group.add(neck);
+
+                // ---- 手臂 (多段, 圆润) ----
+                const armMat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 });
+                const armMatSkin = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.3 });
+                // 左臂
+                const lUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.45, 12, 6), armMat);
+                lUpper.position.set(-0.52, 1.18, 0);
+                lUpper.rotation.z = 0.3;
+                lUpper.castShadow = true;
+                group.add(lUpper);
+                const lFore = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.38, 12, 6), armMatSkin);
+                lFore.position.set(-0.65, 0.86, 0);
+                lFore.rotation.z = 0.1;
+                lFore.castShadow = true;
+                group.add(lFore);
+                const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 8), armMatSkin);
+                lHand.position.set(-0.70, 0.65, 0);
+                group.add(lHand);
+                // 手指
+                for (let i=0; i<3; i++) {
+                    const finger = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), armMatSkin);
+                    finger.position.set(-0.73 + i*0.05, 0.62 - i*0.02, 0.06);
+                    group.add(finger);
+                }
+
+                // 右臂
+                const rUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.45, 12, 6), armMat);
+                rUpper.position.set(0.52, 1.18, 0);
+                rUpper.rotation.z = -0.3;
+                rUpper.castShadow = true;
+                group.add(rUpper);
+                const rFore = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.38, 12, 6), armMatSkin);
+                rFore.position.set(0.65, 0.86, 0);
+                rFore.rotation.z = -0.1;
+                rFore.castShadow = true;
+                group.add(rFore);
+                const rHand = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 8), armMatSkin);
+                rHand.position.set(0.70, 0.65, 0);
+                group.add(rHand);
+                for (let i=0; i<3; i++) {
+                    const finger = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), armMatSkin);
+                    finger.position.set(0.73 - i*0.05, 0.62 - i*0.02, 0.06);
+                    group.add(finger);
+                }
+
+                // ---- 腿部 (多段) ----
+                const legMat = new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.7 });
+                const legMatSkin = new THREE.MeshStandardMaterial({ color: darkSkin, roughness: 0.5 });
+                // 左腿
+                const lThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.20, 0.45, 12, 6), legMat);
+                lThigh.position.set(-0.22, 0.34, 0);
+                lThigh.castShadow = true;
+                group.add(lThigh);
+                const lShin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.42, 12, 6), legMatSkin);
+                lShin.position.set(-0.22, 0.02, 0);
+                lShin.castShadow = true;
+                group.add(lShin);
+                const lFoot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.26, 4,2,4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                lFoot.position.set(-0.22, -0.20, 0.07);
+                group.add(lFoot);
+                // 右腿
+                const rThigh = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.20, 0.45, 12, 6), legMat);
+                rThigh.position.set(0.22, 0.34, 0);
+                rThigh.castShadow = true;
+                group.add(rThigh);
+                const rShin = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.42, 12, 6), legMatSkin);
+                rShin.position.set(0.22, 0.02, 0);
+                rShin.castShadow = true;
+                group.add(rShin);
+                const rFoot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.26, 4,2,4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                rFoot.position.set(0.22, -0.20, 0.07);
+                group.add(rFoot);
+
+                // ---- 武器 (精细) ----
+                const weapGroup = new THREE.Group();
+                weapGroup.position.set(0.80, 1.08, 0);
+                weapGroup.rotation.z = -0.6;
+                if (hero.id === 'warrior') {
+                    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xccddff, metalness: 0.9, roughness: 0.2 });
+                    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.4, 0.5, 2,8,6), bladeMat);
+                    blade.position.y = 0.70;
+                    blade.castShadow = true;
+                    weapGroup.add(blade);
+                    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.35, 8, 4), new THREE.MeshStandardMaterial({ color: 0x8B4513 }));
+                    handle.position.y = -0.05;
+                    weapGroup.add(handle);
+                    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.20, 0.04, 8, 16), new THREE.MeshStandardMaterial({ color: 0xffaa00 }));
+                    guard.position.y = 0.12;
+                    weapGroup.add(guard);
+                } else if (hero.id === 'ranger') {
+                    const bowMat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.7 });
+                    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.05, 12, 24), bowMat);
+                    bow.rotation.z = Math.PI/2;
+                    bow.position.x = 0.1;
+                    weapGroup.add(bow);
+                    const string = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.7, 4), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
+                    string.position.set(0.45, 0, 0);
+                    weapGroup.add(string);
+                } else if (hero.id === 'tech') {
+                    const gunMat = new THREE.MeshStandardMaterial({ color: 0x555577, metalness: 0.6, roughness: 0.3 });
+                    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.8, 10, 4), gunMat);
+                    barrel.rotation.x = Math.PI/2;
+                    barrel.position.x = 0.40;
+                    weapGroup.add(barrel);
+                    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.20, 0.06, 2,4,2), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                    grip.position.set(-0.05, -0.12, 0);
+                    weapGroup.add(grip);
+                    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.18, 8, 4), new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.1 }));
+                    scope.position.set(0.35, 0.12, 0);
+                    weapGroup.add(scope);
+                } else if (hero.id === 'assassin') {
+                    const knifeMat = new THREE.MeshStandardMaterial({ color: 0xddddff, metalness: 0.9, roughness: 0.2 });
+                    const blade = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.7, 8), knifeMat);
+                    blade.rotation.x = Math.PI/2;
+                    blade.position.x = 0.35;
+                    weapGroup.add(blade);
+                    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.18, 8, 4), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                    handle.position.x = -0.02;
+                    weapGroup.add(handle);
+                } else if (hero.id === 'medic') {
+                    const kitMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+                    const kit = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.35, 0.16, 4,6,2), kitMat);
+                    kit.position.x = 0.1;
+                    weapGroup.add(kit);
+                    const redCross = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.02, 2,4,2), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+                    redCross.position.set(0.1, 0, 0.10);
+                    weapGroup.add(redCross);
+                    const redCross2 = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.05, 0.02, 2,4,2), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+                    redCross2.position.set(0.1, 0, 0.10);
+                    weapGroup.add(redCross2);
+                }
+                group.add(weapGroup);
+
+                // 肩甲
+                const shoulderMat = new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.4, metalness: 0.5 });
+                for (let side of [-1,1]) {
+                    const sh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), shoulderMat);
+                    sh.scale.set(1, 0.7, 1.2);
+                    sh.position.set(side*0.54, 1.28, 0);
+                    group.add(sh);
+                }
+
+                // 披风
+                if (hero.id === 'warrior' || hero.id === 'assassin') {
+                    const capeMat = new THREE.MeshStandardMaterial({
+                        color: hero.id==='warrior'?0x882222:0x332244,
+                        roughness: 0.9,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.1, 4, 6), capeMat);
+                    cape.position.set(0, 0.8, -0.45);
+                    cape.rotation.x = 0.3;
+                    const pos = cape.geometry.attributes.position;
+                    for (let i=0; i<pos.count; i++) {
+                        const x = pos.getX(i), y = pos.getY(i);
+                        pos.setZ(i, Math.sin(x*6 + y*4)*0.06);
+                    }
+                    cape.geometry.computeVertexNormals();
+                    group.add(cape);
+                }
+
+                group.scale.set(0.9, 0.9, 0.9);
+                group.position.y = 0.2;
+                // 存储武器组引用
+                group.userData.weaponGroup = weapGroup;
+                return group;
+            }
+
+            // ============================================================
+            //  ★★★ 超精细丧尸模型 (高精度, 生物细节) ★★★
+            // ============================================================
+            function createZombieModel() {
+                const group = new THREE.Group();
+                const skin = 0x6a8a5a;
+                const darkSkin = 0x4a6a3a;
+                const blood = 0x8b0000;
+                const seg = 14;
+
+                // 躯干
+                const torsoMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.9 });
+                const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.42, 1.0, seg, 8), torsoMat);
+                torso.position.y = 0.75;
+                torso.castShadow = true;
+                group.add(torso);
+                // 肋骨 (环)
+                const ribMat = new THREE.MeshStandardMaterial({ color: 0x5a7a4a, roughness: 0.9 });
+                for (let i=0; i<5; i++) {
+                    const rib = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.04, 8, 16), ribMat);
+                    rib.position.y = 0.85 - i*0.10;
+                    rib.rotation.x = Math.PI/2 + 0.1;
+                    group.add(rib);
+                }
+                // 破损衣服 (多块)
+                const clothMat = new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.9, side: THREE.DoubleSide });
+                const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.5, 4,4), clothMat);
+                cloth.position.set(0.1, 0.85, 0.38);
+                cloth.rotation.x = 0.2;
+                group.add(cloth);
+                const cloth2 = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4, 4,4), clothMat);
+                cloth2.position.set(-0.2, 0.75, 0.38);
+                cloth2.rotation.x = -0.1;
+                group.add(cloth2);
+
+                // 头部
+                const headMat = new THREE.MeshStandardMaterial({ color: darkSkin, roughness: 0.9 });
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, seg, seg), headMat);
+                head.position.y = 1.38;
+                head.scale.set(1, 0.9, 0.9);
+                head.castShadow = true;
+                group.add(head);
+                const jaw = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 12), headMat);
+                jaw.position.set(0, 1.22, 0.30);
+                jaw.scale.set(0.9, 0.5, 0.8);
+                group.add(jaw);
+                // 血盆大口
+                const mouthMat = new THREE.MeshStandardMaterial({ color: blood });
+                const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.05, 8, 16), mouthMat);
+                mouth.position.set(0, 1.28, 0.34);
+                mouth.rotation.x = Math.PI/2 + 0.2;
+                group.add(mouth);
+                // 牙齿
+                const toothMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+                for (let i=-2; i<=2; i++) {
+                    const t = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.07, 6), toothMat);
+                    t.position.set(i*0.05, 1.30, 0.38);
+                    group.add(t);
+                }
+                // 眼睛 (红色发光)
+                const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.3 });
+                for (let side of [-1,1]) {
+                    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), eyeMat);
+                    eye.position.set(side*0.12, 1.38, 0.32);
+                    group.add(eye);
+                    const socket = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.015, 8, 12), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                    socket.position.set(side*0.12, 1.38, 0.30);
+                    group.add(socket);
+                }
+                // 头发 (杂乱)
+                const hairMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+                for (let i=0; i<8; i++) {
+                    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.025, 0.15 + Math.random()*0.2, 6, 2), hairMat);
+                    const ang = Math.random()*Math.PI*2;
+                    h.position.set(Math.cos(ang)*0.20, 1.52 + Math.random()*0.12, Math.sin(ang)*0.20);
+                    h.rotation.set((Math.random()-0.5)*0.8, ang, (Math.random()-0.5)*0.8);
+                    group.add(h);
+                }
+
+                // 手臂 (残缺)
+                const armMat = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.9 });
+                // 左臂
+                const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.75, 12, 6), armMat);
+                lArm.position.set(-0.48, 0.98, 0);
+                lArm.rotation.z = 0.8;
+                lArm.castShadow = true;
+                group.add(lArm);
+                const lHand = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshStandardMaterial({ color: darkSkin }));
+                lHand.position.set(-0.66, 0.72, 0);
+                group.add(lHand);
+                // 血渍
+                const bloodMat = new THREE.MeshStandardMaterial({ color: blood });
+                const b1 = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), bloodMat);
+                b1.position.set(-0.50, 0.82, 0.12);
+                group.add(b1);
+                // 右臂 (残缺更严重)
+                const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 0.55, 12, 6), armMat);
+                rArm.position.set(0.48, 0.98, 0);
+                rArm.rotation.z = -0.9;
+                rArm.castShadow = true;
+                group.add(rArm);
+                const stump = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), bloodMat);
+                stump.position.set(0.68, 0.80, 0);
+                group.add(stump);
+
+                // 腿部
+                const legMat = new THREE.MeshStandardMaterial({ color: darkSkin, roughness: 0.9 });
+                // 左腿
+                const lLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 0.48, 12, 6), legMat);
+                lLeg.position.set(-0.20, 0.32, 0);
+                lLeg.castShadow = true;
+                group.add(lLeg);
+                const lFoot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.22, 4,2,4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                lFoot.position.set(-0.20, 0.02, 0.06);
+                group.add(lFoot);
+                // 右腿 (更短)
+                const rLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.38, 12, 6), legMat);
+                rLeg.position.set(0.20, 0.24, 0);
+                rLeg.castShadow = true;
+                group.add(rLeg);
+                const rFoot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.07, 0.20, 4,2,4), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                rFoot.position.set(0.20, 0.02, 0.06);
+                group.add(rFoot);
+
+                // 更多血渍
+                for (let i=0; i<6; i++) {
+                    const b = new THREE.Mesh(new THREE.SphereGeometry(0.03 + Math.random()*0.06, 6, 6), bloodMat);
+                    b.position.set((Math.random()-0.5)*0.7, 0.2 + Math.random()*0.9, (Math.random()-0.5)*0.7);
+                    group.add(b);
+                }
+
+                group.visible = false;
+                group.scale.set(0.9, 0.9, 0.9);
+                return group;
+            }
+
+            // ============================================================
+            //  ★★★ 超精细载具模型 (流线型, 高细节) ★★★
+            // ============================================================
+            function createVehicleModel() {
+                const group = new THREE.Group();
+                const seg = 16;
+
+                // 车身 (流线型)
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness: 0.3, metalness: 0.7 });
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.75, 2.0, seg, 8), bodyMat);
+                body.rotation.x = Math.PI/2;
+                body.position.y = 0.38;
+                body.castShadow = true;
+                body.receiveShadow = true;
+                group.add(body);
+                // 车头 (半球)
+                const nose = new THREE.Mesh(new THREE.SphereGeometry(0.55, seg, seg, 0, Math.PI*2, 0, Math.PI/2), bodyMat);
+                nose.position.set(1.05, 0.38, 0);
+                nose.rotation.x = -Math.PI/2;
+                group.add(nose);
+                // 车尾
+                const tail = new THREE.Mesh(new THREE.SphereGeometry(0.45, seg, seg), bodyMat);
+                tail.position.set(-1.05, 0.38, 0);
+                tail.scale.set(0.5, 0.7, 0.8);
+                group.add(tail);
+
+                // 驾驶室 (透明)
+                const cabinMat = new THREE.MeshStandardMaterial({ color: 0x88ccff, roughness: 0.1, metalness: 0.0, transparent: true, opacity: 0.4 });
+                const cabin = new THREE.Mesh(new THREE.SphereGeometry(0.45, seg, seg, 0, Math.PI*2, 0, Math.PI/2), cabinMat);
+                cabin.position.set(0.1, 0.80, 0);
+                cabin.rotation.x = -Math.PI/2;
+                group.add(cabin);
+                // 框架 (环)
+                const frameMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5 });
+                for (let dz of [-0.35, 0.35]) {
+                    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.03, 8, 20), frameMat);
+                    ring.position.set(0.1, 0.65, dz);
+                    ring.rotation.y = Math.PI/2;
+                    group.add(ring);
+                }
+
+                // 车轮 (高细节)
+                const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+                const hubMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 });
+                const wheelPositions = [
+                    [-0.70, 0.22, 0.70],
+                    [0.70, 0.22, 0.70],
+                    [-0.70, 0.22, -0.70],
+                    [0.70, 0.22, -0.70]
+                ];
+                for (const pos of wheelPositions) {
+                    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.22, seg, 6), wheelMat);
+                    wheel.rotation.z = Math.PI/2;
+                    wheel.position.set(pos[0], pos[1], pos[2]);
+                    wheel.castShadow = true;
+                    group.add(wheel);
+                    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.23, 12, 4), hubMat);
+                    hub.rotation.z = Math.PI/2;
+                    hub.position.set(pos[0], pos[1], pos[2]);
+                    group.add(hub);
+                    // 轮辐 (使用圆柱)
+                    for (let i=0; i<6; i++) {
+                        const ang = (i/6)*Math.PI*2;
+                        const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.20, 4), hubMat);
+                        spoke.position.set(pos[0] + Math.cos(ang)*0.14, pos[1] + Math.sin(ang)*0.14, pos[2]);
+                        spoke.rotation.z = ang;
+                        group.add(spoke);
+                    }
+                }
+
+                // 车灯 (球体)
+                const lightMat = new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffff88, emissiveIntensity: 0.3 });
+                for (let side of [-1,1]) {
+                    const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 10), lightMat);
+                    headlight.position.set(side*0.60, 0.42, 0.60);
+                    group.add(headlight);
+                }
+                const tailMat = new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff0000, emissiveIntensity: 0.2 });
+                for (let side of [-1,1]) {
+                    const taillight = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), tailMat);
+                    taillight.position.set(side*0.60, 0.42, -0.60);
+                    group.add(taillight);
+                }
+
+                // 保险杠 (圆柱)
+                const bumperMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+                const bumper = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.0, 8), bumperMat);
+                bumper.rotation.x = Math.PI/2;
+                bumper.position.set(0, 0.18, 0.60);
+                group.add(bumper);
+                const bumper2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.0, 8), bumperMat);
+                bumper2.rotation.x = Math.PI/2;
+                bumper2.position.set(0, 0.18, -0.60);
+                group.add(bumper2);
+
+                // 防滚架 (环)
+                const rollMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.5, roughness: 0.4 });
+                for (let side of [-1,1]) {
+                    const bar = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.05, 6, 12), rollMat);
+                    bar.position.set(side*0.48, 0.70, -0.25);
+                    bar.rotation.y = side*0.3;
+                    group.add(bar);
+                    const bar2 = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.05, 6, 12), rollMat);
+                    bar2.position.set(side*0.48, 0.70, 0.25);
+                    bar2.rotation.y = -side*0.3;
+                    group.add(bar2);
+                }
+
+                group.position.set(8, 0.0, 8);
+                group.visible = true;
+                return group;
+            }
+
+            // ---------- 对象池 ----------
+            const bulletGroup = new THREE.Group(); scene.add(bulletGroup);
+            const enemyGroup = new THREE.Group(); scene.add(enemyGroup);
+            const gemGroup = new THREE.Group(); scene.add(gemGroup);
+            const particleGroup = new THREE.Group(); scene.add(particleGroup);
+            const textGroup = new THREE.Group(); scene.add(textGroup);
+
+            const bullets=[], enemies=[], particles=[], texts=[], gems=[];
+            for (let i=0; i<POOL_BULLETS; i++) {
+                const m = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 8), new THREE.MeshStandardMaterial({ color:0xffdd00, emissive:0xff8800, emissiveIntensity:0.2 }));
+                m.castShadow=true; m.visible=false; bulletGroup.add(m);
+                bullets.push({mesh:m, active:false, vx:0, vz:0, dmg:1, pen:0, dist:0, max:30});
+            }
+            for (let i=0; i<POOL_ENEMIES; i++) {
+                const m = createZombieModel(); enemyGroup.add(m);
+                enemies.push({mesh:m, active:false, hp:2, maxHp:2, spd:2.0, size:0.8, damageCd:0, exp:1});
+            }
+            for (let i=0; i<POOL_PARTICLES; i++) {
+                const m = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6,6), new THREE.MeshBasicMaterial({color:0xff8800}));
+                m.visible=false; particleGroup.add(m);
+                particles.push({mesh:m, vx:0, vy:0, vz:0, life:0, maxLife:1.5, active:false});
+            }
+            for (let i=0; i<POOL_DAMAGE; i++) {
+                const c=document.createElement('canvas'); c.width=64; c.height=32; const ctx=c.getContext('2d');
+                ctx.fillStyle='white'; ctx.font='bold 20px "Courier New"'; ctx.textAlign='center'; ctx.fillText('-1',32,24);
+                const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c)}));
+                s.scale.set(0.9,0.45,1); s.visible=false; textGroup.add(s);
+                texts.push({sprite:s, life:0, maxLife:0.8, active:false});
+            }
+            for (let i=0; i<POOL_GEMS; i++) {
+                const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.25), new THREE.MeshStandardMaterial({color:0x2ecc71, emissive:0x2ecc71, emissiveIntensity:0.1, roughness:0.2, metalness:0.3}));
+                m.visible=false; gemGroup.add(m);
+                gems.push({mesh:m, active:false, magnet:0.4, exp:1, type:'exp'});
+            }
+
+            // ---------- 游戏状态 ----------
+            const player = {
+                hp:10, maxHp:10, level:1, exp:0, expToNext:30, kills:0,
+                damage:1, speed:6.5, armor:0, attackInterval:0.3, attackTimer:0,
+                bulletSize:0.4, invincible:0, skillCharge:0, skillMax:100, skillReady:false,
+                inVehicle:false, vehicleSpeed:12,
+                attackAnimTimer: 0,
+                weaponGroup: null
+            };
+            const state = {
+                phase:'menu', time:0, shake:0, shakeInt:0,
+                moveX:0, moveY:0, joyActive:false, joyX:0, joyY:0,
+                keys:{}, fps:60, fpsCount:0, fpsLast:0,
+                spawnTimer:0, lastSaveKills:0, god:false,
+                animId:null, mouseWorld:new THREE.Vector3(),
+                difficulty:1, mode:'survival', nearVehicle:false
+            };
+
+            const playerGroup = new THREE.Group(); scene.add(playerGroup);
+            const vehicle = createVehicleModel(); scene.add(vehicle);
+
+            // ---------- 音频 ----------
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            let audioCtx = null;
+            function initAudio() { if(!audioCtx) audioCtx = new AudioContext(); }
+            function playTone(f,t,d,v=0.1) { if(!audioCtx) return; const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type=t; o.frequency.value=f; g.gain.setValueAtTime(v,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d); o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d); }
+            function sfxShoot() { playTone(800,'square',0.05,0.05); }
+            function sfxHit() { playTone(200,'sawtooth',0.1,0.08); }
+            function sfxExplosion() { playTone(80,'sawtooth',0.2,0.1); }
+            function sfxLevelUp() { [261,329,392].forEach((f,i)=>setTimeout(()=>playTone(f,'sine',0.15,0.1), i*80)); }
+
+            // ---------- 工具函数 ----------
+            function acq(pool) { for(const i of pool) if(!i.active) return i; return null; }
+            function spawnBullet(x,z,vx,vz,dmg,pen,size) { const b=acq(bullets); if(!b) return; b.active=true; b.mesh.position.set(x, getGroundY(x,z)+0.9, z); b.mesh.visible=true; b.vx=vx; b.vz=vz; b.dmg=dmg; b.pen=pen; b.dist=0; b.max=30; b.mesh.scale.set(size,size,size); }
+            function spawnEnemy(x,z,hp,spd,size) { const e=acq(enemies); if(!e) return; e.active=true; e.hp=hp; e.maxHp=hp; e.spd=spd; e.size=size; const y = getGroundY(x,z); e.mesh.position.set(x, y, z); e.mesh.visible=true; e.mesh.scale.setScalar(size/0.8); e.damageCd=0; e.exp=1; }
+            function spawnGem(x,z,type) { const g=acq(gems); if(!g) return; g.active=true; const y = getGroundY(x,z); g.mesh.position.set(x, y+0.6, z); g.mesh.visible=true; g.magnet=0.4; g.type=type; g.mesh.material.color.setHex(type==='health'?0xe74c3c:0x2ecc71); }
+            function explode(x,y,z,count=20) { for(let i=0;i<count;i++){ const p=acq(particles); if(!p) continue; p.active=true; p.mesh.position.set(x,y,z); p.mesh.visible=true; p.mesh.material.color.setHSL(Math.random(),1,0.5); p.vx=(Math.random()-0.5)*6; p.vy=Math.random()*5+1; p.vz=(Math.random()-0.5)*6; p.life=rand(0.6,1.2); p.maxLife=p.life; } }
+            function damageText(x,y,z,txt) { const d=acq(texts); if(!d) return; d.active=true; d.sprite.position.set(x,y,z); d.sprite.visible=true; d.life=d.maxLife; const c=document.createElement('canvas'); c.width=64; c.height=32; const ctx=c.getContext('2d'); ctx.fillStyle='white'; ctx.font='bold 20px "Courier New"'; ctx.textAlign='center'; ctx.fillText(txt,32,24); d.sprite.material.map=new THREE.CanvasTexture(c); d.sprite.material.needsUpdate=true; }
+            function dist3(a,b){ return Math.sqrt((a.x-b.x)**2+(a.z-b.z)**2); }
+            function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
+            function rand(min,max){ return min+Math.random()*(max-min); }
+            function applyHeroStats() {
+                player.maxHp = selectedHero.hp; player.hp = player.maxHp;
+                player.damage = selectedHero.dmg; player.speed = selectedHero.spd;
+                player.armor = selectedHero.armor; player.attackInterval = selectedHero.atkSpd;
+                player.skillMax = 100; player.skillCharge = 0;
+            }
+
+            // ---------- 手动射击 (触发攻击动画) ----------
+            function shoot() {
+                if (state.phase !== 'playing' || player.inVehicle) return;
+                let closest=null, cDist=Infinity;
+                for(const e of enemies) if(e.active) { const d=dist3(playerGroup.position, e.mesh.position); if(d<cDist){ cDist=d; closest=e; } }
+                if(!closest) return;
+                const dx = closest.mesh.position.x - playerGroup.position.x;
+                const dz = closest.mesh.position.z - playerGroup.position.z;
+                const l = Math.sqrt(dx*dx+dz*dz) || 1;
+                const spd = 18;
+                const px = playerGroup.position.x, pz = playerGroup.position.z;
+                spawnBullet(px, pz, dx/l*spd, dz/l*spd, player.damage, player.level>5?1:0, player.bulletSize);
+                sfxShoot();
+                state.shake = 0.03;
+                state.shakeInt = 0.2;
+                // 触发攻击动画
+                player.attackAnimTimer = 0.2;
+            }
+
+            // ---------- 碰撞检测 (静态障碍物) ----------
+            function checkCollision(pos, radius) {
+                for (const obs of obstacles) {
+                    const dx = pos.x - obs.pos.x, dz = pos.z - obs.pos.z;
+                    const dist = Math.sqrt(dx*dx+dz*dz);
+                    if (dist < radius + obs.radius) {
+                        const nx = dist > 0.001 ? dx/dist : 1;
+                        const nz = dist > 0.001 ? dz/dist : 0;
+                        return { collided: true, nx, nz, overlap: radius + obs.radius - dist };
+                    }
+                }
+                return { collided: false };
+            }
+            function resolveCollision(pos, radius, pushFactor=1.0) {
+                const coll = checkCollision(pos, radius);
+                if (coll.collided) {
+                    pos.x += coll.nx * coll.overlap * pushFactor;
+                    pos.z += coll.nz * coll.overlap * pushFactor;
+                }
+                return coll.collided;
+            }
+
+            // ---------- 固定更新 ----------
+            function fixedUpdate(dt) {
+                if (state.phase !== 'playing') return;
+                state.time += dt;
+                if (player.invincible > 0) player.invincible -= dt;
+                if (state.shake > 0) state.shake -= dt;
+
+                // 玩家移动
+                let mx=state.moveX, my=state.moveY;
+                if (state.joyActive) { mx=state.joyX; my=state.joyY; }
+                const len = Math.sqrt(mx*mx+my*my);
+                if (len>1) { mx/=len; my/=len; }
+                const spd = player.inVehicle ? player.vehicleSpeed : player.speed;
+                let newX = playerGroup.position.x + mx*spd*dt;
+                let newZ = playerGroup.position.z + my*spd*dt;
+                const playerRadius = player.inVehicle ? 1.2 : 0.6;
+                newX = clamp(newX, -48, 48);
+                newZ = clamp(newZ, -48, 48);
+                const playerPos = new THREE.Vector3(newX, 0, newZ);
+                for (let iter=0; iter<3; iter++) {
+                    resolveCollision(playerPos, playerRadius, 1.2);
+                }
+                // 与敌人互斥
+                for (const e of enemies) {
+                    if (!e.active) continue;
+                    const dx = playerPos.x - e.mesh.position.x;
+                    const dz = playerPos.z - e.mesh.position.z;
+                    const dist = Math.sqrt(dx*dx+dz*dz);
+                    const minDist = playerRadius + e.size;
+                    if (dist < minDist && dist > 0.001) {
+                        const overlap = (minDist - dist) / 2;
+                        const nx = dx/dist, nz = dz/dist;
+                        playerPos.x += nx * overlap;
+                        playerPos.z += nz * overlap;
+                        e.mesh.position.x -= nx * overlap;
+                        e.mesh.position.z -= nz * overlap;
+                    }
+                }
+                playerPos.x = clamp(playerPos.x, -48, 48);
+                playerPos.z = clamp(playerPos.z, -48, 48);
+                playerGroup.position.x = playerPos.x;
+                playerGroup.position.z = playerPos.z;
+                const groundY = getGroundY(playerPos.x, playerPos.z);
+                playerGroup.position.y = groundY + (player.inVehicle ? 0.6 : 0.2);
+
+                const dxMouse = state.mouseWorld.x - playerGroup.position.x;
+                const dzMouse = state.mouseWorld.z - playerGroup.position.z;
+                if (Math.abs(dxMouse)>0.1 || Math.abs(dzMouse)>0.1) playerGroup.rotation.y = Math.atan2(dxMouse, dzMouse);
+
+                // 载具交互
+                const distToVehicle = dist3(playerGroup.position, vehicle.position);
+                state.nearVehicle = distToVehicle < 3.5 && !player.inVehicle;
+                vehicleHint.style.display = state.nearVehicle ? 'block' : 'none';
+                if (player.inVehicle) {
+                    vehicle.position.copy(playerGroup.position);
+                    vehicle.position.y = groundY + 0.0;
+                    vehicle.rotation.y = playerGroup.rotation.y;
+                }
+
+                // 敌人移动 + 碰撞
+                for (const e of enemies) {
+                    if (!e.active) continue;
+                    const dx = playerGroup.position.x - e.mesh.position.x;
+                    const dz = playerGroup.position.z - e.mesh.position.z;
+                    const l = Math.sqrt(dx*dx+dz*dz) || 1;
+                    let newEx = e.mesh.position.x + dx/l * e.spd * dt;
+                    let newEz = e.mesh.position.z + dz/l * e.spd * dt;
+                    newEx = clamp(newEx, -48, 48);
+                    newEz = clamp(newEz, -48, 48);
+                    const enemyPos = new THREE.Vector3(newEx, 0, newEz);
+                    for (let iter=0; iter<3; iter++) {
+                        resolveCollision(enemyPos, e.size, 1.0);
+                    }
+                    // 敌人之间互斥
+                    for (const other of enemies) {
+                        if (other === e || !other.active) continue;
+                        const dx2 = enemyPos.x - other.mesh.position.x;
+                        const dz2 = enemyPos.z - other.mesh.position.z;
+                        const dist2 = Math.sqrt(dx2*dx2+dz2*dz2);
+                        const minDist2 = e.size + other.size;
+                        if (dist2 < minDist2 && dist2 > 0.001) {
+                            const overlap2 = (minDist2 - dist2) / 2;
+                            const nx2 = dx2/dist2, nz2 = dz2/dist2;
+                            enemyPos.x += nx2 * overlap2;
+                            enemyPos.z += nz2 * overlap2;
+                            other.mesh.position.x -= nx2 * overlap2;
+                            other.mesh.position.z -= nz2 * overlap2;
+                        }
+                    }
+                    enemyPos.x = clamp(enemyPos.x, -48, 48);
+                    enemyPos.z = clamp(enemyPos.z, -48, 48);
+                    e.mesh.position.x = enemyPos.x;
+                    e.mesh.position.z = enemyPos.z;
+                    e.mesh.position.y = getGroundY(enemyPos.x, enemyPos.z) + 0.0;
+
+                    if (e.damageCd > 0) e.damageCd -= dt;
+                    if (dist3(playerGroup.position, e.mesh.position) < e.size + 0.9 && e.damageCd <= 0) {
+                        hurtPlayer(1);
+                        e.damageCd = 1.2;
+                        const knockX = (e.mesh.position.x - playerGroup.position.x) / l * 1.5;
+                        const knockZ = (e.mesh.position.z - playerGroup.position.z) / l * 1.5;
+                        e.mesh.position.x += knockX;
+                        e.mesh.position.z += knockZ;
+                    }
+                }
+
+                // 子弹更新
+                for (const b of bullets) {
+                    if (!b.active) continue;
+                    b.mesh.position.x += b.vx * dt;
+                    b.mesh.position.z += b.vz * dt;
+                    b.mesh.position.y = getGroundY(b.mesh.position.x, b.mesh.position.z) + 0.9;
+                    b.dist += Math.sqrt(b.vx*b.vx + b.vz*b.vz) * dt;
+                    if (b.dist >= b.max) { b.active=false; b.mesh.visible=false; continue; }
+                    for (const e of enemies) {
+                        if (!e.active || !b.active) continue;
+                        if (dist3(b.mesh.position, e.mesh.position) < b.mesh.scale.x + e.size) {
+                            e.hp -= b.dmg;
+                            damageText(e.mesh.position.x, e.mesh.position.y+1.2, e.mesh.position.z, '-'+b.dmg);
+                            b.pen--;
+                            if (b.pen < 0) { b.active=false; b.mesh.visible=false; }
+                            if (e.hp <= 0) killEnemy(e);
+                        }
+                    }
+                }
+
+                // 粒子、文字、宝石
+                for (const p of particles) { if(!p.active) continue; p.mesh.position.x+=p.vx*dt; p.mesh.position.y+=p.vy*dt; p.mesh.position.z+=p.vz*dt; p.vy-=3*dt; p.life-=dt; if(p.life<=0){ p.active=false; p.mesh.visible=false; } }
+                for (const d of texts) { if(!d.active) continue; d.sprite.position.y+=1.2*dt; d.life-=dt; if(d.life<=0){ d.active=false; d.sprite.visible=false; } }
+                for (const g of gems) {
+                    if(!g.active) continue;
+                    if(g.magnet>0){ g.magnet-=dt; continue; }
+                    const dx = playerGroup.position.x - g.mesh.position.x;
+                    const dz = playerGroup.position.z - g.mesh.position.z;
+                    const l = Math.sqrt(dx*dx+dz*dz) || 1;
+                    g.mesh.position.x += dx/l * 5 * dt;
+                    g.mesh.position.z += dz/l * 5 * dt;
+                    g.mesh.position.y = getGroundY(g.mesh.position.x, g.mesh.position.z) + 0.6;
+                    if(dist3(playerGroup.position, g.mesh.position) < 1.2) {
+                        if(g.type==='health') player.hp = Math.min(player.maxHp, player.hp+2);
+                        else addExp(g.exp);
+                        g.active=false; g.mesh.visible=false;
+                    }
+                }
+
+                // 生成敌人
+                state.spawnTimer -= dt;
+                if(state.spawnTimer <= 0) {
+                    const diffMult = state.difficulty===0?0.7:state.difficulty===1?1.0:1.5;
+                    state.spawnTimer = Math.max(0.5, rand(1.8,2.8) - diffMult*0.15);
+                    const count = rand(1,3) + Math.floor(state.difficulty);
+                    for(let i=0; i<count; i++) {
+                        const angle = Math.random()*Math.PI*2, dist=50;
+                        spawnEnemy(Math.cos(angle)*dist, Math.sin(angle)*dist, 2+state.difficulty*2, 1.8+diffMult*0.8, 0.8+Math.random()*0.4);
+                    }
+                }
+
+                // 技能充能
+                if(!player.skillReady) {
+                    player.skillCharge = Math.min(player.skillMax, player.skillCharge + 0.5*dt);
+                    if(player.skillCharge>=player.skillMax) player.skillReady=true;
+                }
+                skillHint.style.display = player.skillReady?'block':'none';
+
+                // 攻击动画计时
+                if (player.attackAnimTimer > 0) {
+                    player.attackAnimTimer -= dt;
+                    if (player.attackAnimTimer < 0) player.attackAnimTimer = 0;
+                }
+
+                if(state.mode==='rush' && state.time>=180) { state.phase='gameover'; showGameOver(); }
+                hudDiff.textContent = state.difficulty===0?'简单':state.difficulty===1?'普通':'困难';
+                if(player.kills - state.lastSaveKills >= 20) { saveGame(); state.lastSaveKills = player.kills; }
+            }
+
+            // ---------- 游戏逻辑函数 ----------
+            function hurtPlayer(dmg) {
+                if(state.god||player.invincible>0) return;
+                const actual = Math.max(1, dmg-player.armor);
+                if(actual<=0) return;
+                player.hp-=actual; player.invincible=0.3;
+                state.shake=0.15; state.shakeInt=0.8; sfxHit();
+                if(player.hp<=0) { player.hp=0; state.phase='gameover'; showGameOver(); }
+            }
+            function addExp(amount) {
+                player.exp+=amount;
+                while(player.exp>=player.expToNext && state.phase==='playing') {
+                    player.exp-=player.expToNext; player.level++;
+                    player.expToNext = Math.floor(30*Math.pow(1.4,player.level));
+                    levelUp();
+                }
+                if(selectedHero.id==='medic') player.hp = Math.min(player.maxHp, player.hp+1);
+            }
+            function useSkill() {
+                if(!player.skillReady||state.phase!=='playing') return;
+                player.skillReady=false; player.skillCharge=0;
+                const pos=playerGroup.position;
+                for(const e of enemies) {
+                    if(!e.active) continue;
+                    if(dist3(pos, e.mesh.position)<6) { e.hp-=5+player.level; if(e.hp<=0) killEnemy(e); }
+                }
+                explode(pos.x,pos.y+1,pos.z,50); state.shake=0.1; state.shakeInt=1.5; sfxExplosion();
+            }
+            function killEnemy(e) {
+                const y = e.mesh.position.y;
+                explode(e.mesh.position.x, y, e.mesh.position.z);
+                const cnt=rand(3,5)|0;
+                for(let i=0;i<cnt;i++) spawnGem(e.mesh.position.x+rand(-0.8,0.8), e.mesh.position.z+rand(-0.8,0.8), Math.random()<0.1?'health':'exp');
+                player.kills++; addExp(e.exp); player.skillCharge=Math.min(player.skillMax, player.skillCharge+6);
+                player.skillReady=player.skillCharge>=player.skillMax; e.active=false; e.mesh.visible=false; sfxExplosion();
+            }
+            const upgrades = [
+                {id:'dmg', icon:'???', name:'攻击+15%', apply:()=>player.damage*=1.15},
+                {id:'spd', icon:'??', name:'移速+15%', apply:()=>player.speed*=1.15},
+                {id:'hp', icon:'??', name:'生命上限+2', apply:()=>{player.maxHp+=2; player.hp=player.maxHp;}},
+                {id:'armor', icon:'???', name:'护甲+1', apply:()=>player.armor+=1},
+                {id:'atk', icon:'?', name:'攻速+15%', apply:()=>player.attackInterval=Math.max(0.06,player.attackInterval*0.85)},
+                {id:'size', icon:'??', name:'子弹+20%', apply:()=>player.bulletSize*=1.2}
+            ];
+            function levelUp() { state.phase='paused'; showUpgrade(); sfxLevelUp(); saveGame(); }
+            function showUpgrade() {
+                const choices=[...upgrades].sort(()=>Math.random()-0.5).slice(0,3);
+                upgradeContainer.innerHTML='';
+                choices.forEach(c=>{
+                    const card=document.createElement('div'); card.className='upgrade-card';
+                    card.innerHTML=`<span class="icon">${c.icon}</span>${c.name}`;
+                    card.onclick=()=>{ c.apply(); upgradeModal.classList.add('hidden'); state.phase='playing'; };
+                    upgradeContainer.appendChild(card);
+                });
+                upgradeModal.classList.remove('hidden');
+            }
+
+            // ---------- 存档 ----------
+            function saveGame() {
+                const data = { hero:selectedHero.id, diff:selectedDiff, mode:selectedMode, hp:player.hp, maxHp:player.maxHp, level:player.level, exp:player.exp, expToNext:player.expToNext, kills:player.kills, damage:player.damage, speed:player.speed, armor:player.armor, attackInterval:player.attackInterval, bulletSize:player.bulletSize, time:state.time, difficulty:state.difficulty, skillCharge:player.skillCharge };
+                try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+            }
+            function loadSave() { try { const d=localStorage.getItem(SAVE_KEY); return d?JSON.parse(d):null; } catch(e){ return null; } }
+            function hasSave() { return !!loadSave(); }
+            function deleteSave() { try { localStorage.removeItem(SAVE_KEY); } catch(e) {} }
+            function clearAllPools() {
+                for(const b of bullets){ b.active=false; b.mesh.visible=false; }
+                for(const e of enemies){ e.active=false; e.mesh.visible=false; }
+                for(const p of particles){ p.active=false; p.mesh.visible=false; }
+                for(const d of texts){ d.active=false; d.sprite.visible=false; }
+                for(const g of gems){ g.active=false; g.mesh.visible=false; }
+            }
+            function startGame(loadFromSave=false) {
+                initAudio(); clearAllPools();
+                if (loadFromSave) {
+                    const data = loadSave(); if (!data) return;
+                    selectedHero = heroDefs.find(h=>h.id===data.hero) || heroDefs[0];
+                    selectedDiff = data.diff; selectedMode = data.mode;
+                    applyHeroStats();
+                    player.hp = data.hp; player.maxHp = data.maxHp; player.level = data.level; player.exp = data.exp; player.expToNext = data.expToNext; player.kills = data.kills; player.damage = data.damage; player.speed = data.speed; player.armor = data.armor; player.attackInterval = data.attackInterval; player.bulletSize = data.bulletSize; state.time = data.time; state.difficulty = data.difficulty; player.skillCharge = data.skillCharge; player.skillReady = (player.skillCharge>=player.skillMax);
+                } else { applyHeroStats(); state.time = 0; player.level = 1; player.exp = 0; player.expToNext = 30; player.kills = 0; player.skillCharge = 0; player.skillReady = false; }
+                state.phase='playing'; state.shake=0; state.spawnTimer=0.5; state.lastSaveKills=0;
+                state.difficulty = selectedDiff; state.mode = selectedMode;
+                player.attackTimer=0; player.invincible=0; player.inVehicle=false;
+                player.attackAnimTimer = 0;
+                const startY = getGroundY(0,0);
+                vehicle.position.set(8, startY, 8);
+                vehicle.visible = true;
+                playerGroup.position.set(0, startY+0.2, 0);
+                while(playerGroup.children.length>0) playerGroup.remove(playerGroup.children[0]);
+                const heroModel = createHeroModel(selectedHero);
+                playerGroup.add(heroModel);
+                player.weaponGroup = heroModel.userData.weaponGroup || null;
+                upgradeModal.classList.add('hidden'); gameoverModal.classList.add('hidden'); mainMenu.classList.add('hidden');
+                skillHint.style.display='none'; vehicleHint.style.display='none';
+                shootHint.style.display = 'block';
+                acc=0; lastT=0; deleteSave();
+            }
+            function showGameOver() {
+                goKills.textContent=player.kills;
+                const m=Math.floor(state.time/60), s=Math.floor(state.time%60);
+                goTime.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+                goDiff.textContent=state.difficulty===0?'简单':state.difficulty===1?'普通':'困难';
+                gameoverModal.classList.remove('hidden'); saveGame();
+                shootHint.style.display = 'none';
+            }
+            function backToMenu() {
+                state.phase='menu'; gameoverModal.classList.add('hidden'); upgradeModal.classList.add('hidden');
+                mainMenu.classList.remove('hidden'); clearAllPools(); updateContinueButton();
+                shootHint.style.display = 'block';
+            }
+
+            // ---------- HUD ----------
+            function updateHUD() {
+                hpBar.style.width=Math.max(0,player.hp/player.maxHp*100)+'%';
+                expBar.style.width=(player.expToNext>0?player.exp/player.expToNext*100:0)+'%';
+                skillBar.style.width=(player.skillCharge/player.skillMax*100)+'%';
+                hudLv.textContent=player.level; hudKills.textContent=player.kills;
+                const m=Math.floor(state.time/60), s=Math.floor(state.time%60);
+                hudTime.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+            }
+
+            // ---------- 渲染 (包含攻击动画) ----------
+            let walkBob = 0;
+            function renderScene() {
+                stars.rotation.y += 0.0001;
+                playerLight.position.copy(playerGroup.position).add(new THREE.Vector3(0,3,0));
+                const target = playerGroup.position.clone();
+                camera.position.lerp(new THREE.Vector3(target.x, 28, target.z+20), 0.08);
+                camera.lookAt(target.x, target.y+1, target.z);
+                if(state.shake>0){ const i=state.shakeInt*(state.shake/0.15); camera.position.x+=(Math.random()-0.5)*i; camera.position.z+=(Math.random()-0.5)*i; }
+                const isMoving = Math.abs(state.moveX)>0.1 || Math.abs(state.moveY)>0.1;
+                if (isMoving && state.phase==='playing' && !player.inVehicle) {
+                    walkBob += 0.15;
+                    playerGroup.position.y += Math.sin(walkBob)*0.04;
+                }
+
+                // ---- 攻击动画 (武器挥动) ----
+                if (player.weaponGroup && state.phase === 'playing' && !player.inVehicle) {
+                    const timer = player.attackAnimTimer;
+                    if (timer > 0) {
+                        const duration = 0.2;
+                        const progress = timer / duration;
+                        const t = 1 - progress;
+                        const angle = -0.7 * Math.sin(t * Math.PI);
+                        player.weaponGroup.rotation.x = angle;
+                    } else {
+                        player.weaponGroup.rotation.x = 0;
+                    }
+                }
+
+                renderer.render(scene, camera);
+            }
+
+            let lastT=0, acc=0;
+            function loop(ts) {
+                try {
+                    if(lastT===0) lastT=ts;
+                    let dt=(ts-lastT)/1000; lastT=ts;
+                    if(dt>MAX_DELTA) dt=MAX_DELTA; if(dt<=0) dt=FIXED_STEP;
+                    state.fpsCount++;
+                    if(ts-state.fpsLast>=1000){ state.fps=Math.round(state.fpsCount/((ts-state.fpsLast)/1000)); state.fpsCount=0; state.fpsLast=ts; fpsEl.textContent='FPS: '+state.fps; fpsEl.className=state.fps>=60?'fps-green':state.fps>=45?'fps-yellow':'fps-red'; }
+                    if(state.phase==='playing'){ acc+=dt; while(acc>=FIXED_STEP){ fixedUpdate(FIXED_STEP); acc-=FIXED_STEP; } }
+                    renderScene(); updateHUD();
+                    state.animId=requestAnimationFrame(loop);
+                } catch(e){ console.error(e); state.animId=requestAnimationFrame(loop); }
+            }
+
+            // ---------- 键盘/鼠标/触摸 ----------
+            function onKeyDown(e) {
+                state.keys[e.key.toLowerCase()] = true; updateKeyboard();
+                if(e.key === ' '){ useSkill(); e.preventDefault(); }
+                if(e.key.toLowerCase() === 'f' && state.nearVehicle && !player.inVehicle) {
+                    player.inVehicle = true; vehicleHint.style.display = 'none';
+                } else if(e.key.toLowerCase() === 'f' && player.inVehicle) {
+                    player.inVehicle = false;
+                    const y = getGroundY(vehicle.position.x, vehicle.position.z);
+                    playerGroup.position.set(vehicle.position.x, y+0.2, vehicle.position.z);
+                }
+                if(e.key.toLowerCase() === 'h') { helpModal.classList.toggle('hidden'); }
+                if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(e.key.toLowerCase())) e.preventDefault();
+            }
+            function onKeyUp(e){ state.keys[e.key.toLowerCase()]=false; updateKeyboard(); }
+            function updateKeyboard(){
+                let dx=0,dy=0;
+                if(state.keys['w']||state.keys['arrowup']) dy-=1;
+                if(state.keys['s']||state.keys['arrowdown']) dy+=1;
+                if(state.keys['a']||state.keys['arrowleft']) dx-=1;
+                if(state.keys['d']||state.keys['arrowright']) dx+=1;
+                const l=Math.sqrt(dx*dx+dy*dy); if(l>1){ dx/=l; dy/=l; }
+                state.moveX=dx; state.moveY=dy;
+            }
+
+            // 鼠标射击
+            canvas.addEventListener('mousedown', (e) => {
+                if (e.button === 0) shoot();
+            });
+            // 触摸射击
+            canvas.addEventListener('touchstart', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+                if (x < 150 && y > rect.height - 150) return;
+                shoot();
+            }, { passive: true });
+
+            // 鼠标移动 (瞄准)
+            canvas.addEventListener('mousemove', e=>{
+                const rect=canvas.getBoundingClientRect();
+                const mouse=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1, -((e.clientY-rect.top)/rect.height)*2+1);
+                const rc=new THREE.Raycaster(); rc.setFromCamera(mouse,camera);
+                const plane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+                const target=new THREE.Vector3(); rc.ray.intersectPlane(plane,target);
+                if(target) state.mouseWorld.copy(target);
+            });
+
+            // 摇杆
+            function setupJoystick(){
+                const zone=joystickZone, thumb=joystickThumb;
+                let id=null, cx=0, cy=0, maxR=zone.offsetWidth/2*0.7;
+                function getPos(e){ for(const t of e.changedTouches) if(t.identifier===id) return {x:t.clientX,y:t.clientY}; return null; }
+                zone.addEventListener('touchstart',e=>{ if(id!==null) return; const t=e.changedTouches[0]; id=t.identifier; const r=zone.getBoundingClientRect(); cx=r.left+r.width/2; cy=r.top+r.height/2; state.joyActive=true; e.preventDefault(); },{passive:false});
+                zone.addEventListener('touchmove',e=>{ if(id===null) return; const p=getPos(e); if(!p) return; let dx=p.x-cx,dy=p.y-cy; const dist=Math.sqrt(dx*dx+dy*dy),clamped=Math.min(dist,maxR); if(dist>0.001){ dx=dx/dist*clamped; dy=dy/dist*clamped; } thumb.style.transform=`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; state.joyX=dx/maxR; state.joyY=dy/maxR; e.preventDefault(); },{passive:false});
+                zone.addEventListener('touchend',e=>{ for(const t of e.changedTouches) if(t.identifier===id){ id=null; break; } state.joyActive=false; state.joyX=0; state.joyY=0; thumb.style.transform='translate(-50%,-50%)'; e.preventDefault(); },{passive:false});
+            }
+
+            // ---------- 帮助按钮 ----------
+            helpBtn.addEventListener('click', ()=>{ helpModal.classList.toggle('hidden'); });
+            helpClose.addEventListener('click', ()=>{ helpModal.classList.add('hidden'); });
+
+            // ---------- 菜单 ----------
+            function buildMenu() {
+                const heroDiv = document.getElementById('hero-select');
+                heroDiv.innerHTML='';
+                heroDefs.forEach(h=>{
+                    const card=document.createElement('div');
+                    card.className='hero-card'+(h.id===selectedHero.id?' selected':'');
+                    card.innerHTML=`<span class="hero-icon">${h.icon}</span><b>${h.name}</b><br><small>${h.desc}</small>`;
+                    card.onclick=()=>{ document.querySelectorAll('.hero-card').forEach(c=>c.classList.remove('selected')); card.classList.add('selected'); selectedHero=h; };
+                    heroDiv.appendChild(card);
+                });
+                document.querySelectorAll('.diff-btn').forEach(b=>{ b.classList.toggle('selected', parseInt(b.dataset.diff)===selectedDiff); b.onclick=()=>{ document.querySelectorAll('.diff-btn').forEach(b2=>b2.classList.remove('selected')); b.classList.add('selected'); selectedDiff=parseInt(b.dataset.diff); }; });
+                document.querySelectorAll('.mode-btn').forEach(b=>{ b.classList.toggle('selected', b.dataset.mode===selectedMode); b.onclick=()=>{ document.querySelectorAll('.mode-btn').forEach(b2=>b2.classList.remove('selected')); b.classList.add('selected'); selectedMode=b.dataset.mode; }; });
+                updateContinueButton();
+            }
+            function updateContinueButton() { continueBtn.style.display = hasSave() ? 'inline-block' : 'none'; }
+            buildMenu();
+
+            document.getElementById('btn-start-game').addEventListener('click', ()=>startGame(false));
+            continueBtn.addEventListener('click', ()=>startGame(true));
+            btnRestart.addEventListener('click', backToMenu);
+
+            // ---------- 初始化 ----------
+            function init() {
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                setupJoystick();
+                state.phase='menu'; mainMenu.classList.remove('hidden');
+                lastT=0; acc=0; state.fpsLast=performance.now();
+                state.animId=requestAnimationFrame(loop);
+                loadingEl.style.display='none';
+                shootHint.style.display = 'block';
+                helpModal.classList.add('hidden');
+            }
+
+            window.addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+            document.addEventListener('contextmenu', e=>e.preventDefault());
+
+            window.__DEBUG__ = { addExp:a=>addExp(a), god:()=>state.god=!state.god, killAll:()=>enemies.forEach(e=>{if(e.active)killEnemy(e);}) };
+            window.addEventListener('beforeunload',()=>{ if(state.animId) cancelAnimationFrame(state.animId); });
+
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init);
+            else init();
+
+        })();
+    </script>
+</body>
+</html>

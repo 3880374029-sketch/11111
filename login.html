@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 · 星际游戏合集</title>
+<style>
+/* ===== 基础（沿用项目深色 + 青金配色） ===== */
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: #0b0815;
+  background-image:
+    radial-gradient(ellipse at 20% 20%, #1d1533 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 80%, #14263a 0%, transparent 55%);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #e0e6f0;
+  padding: 20px;
+}
+
+.card {
+  width: 100%; max-width: 400px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  padding: 32px 28px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+
+h1 {
+  font-size: 26px; font-weight: 700; text-align: center;
+  background: linear-gradient(135deg, #f9d78c, #7ec8e3);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin-bottom: 6px; letter-spacing: 1px;
+}
+.sub { text-align: center; color: rgba(224,230,240,0.4); font-size: 13px; margin-bottom: 22px; }
+
+/* 标签页 */
+.tabs { display: flex; gap: 6px; background: rgba(0,0,0,0.25); border-radius: 30px; padding: 4px; margin-bottom: 20px; }
+.tab {
+  flex: 1; padding: 8px; border: none; border-radius: 30px;
+  background: transparent; color: rgba(224,230,240,0.5);
+  font-size: 14px; font-family: inherit; cursor: pointer; transition: 0.2s;
+}
+.tab.active { background: rgba(0,212,255,0.16); color: #00d4ff; font-weight: 600; }
+
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: rgba(224,230,240,0.5); margin-bottom: 6px; }
+.field input {
+  width: 100%; padding: 11px 14px;
+  border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.25); color: #e0e6f0;
+  font-size: 14px; font-family: inherit; outline: none; transition: 0.2s;
+}
+.field input:focus { border-color: #00d4ff; box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
+
+.submit {
+  width: 100%; padding: 12px; margin-top: 6px;
+  border: none; border-radius: 30px;
+  background: linear-gradient(135deg, #00d4ff, #0090ff);
+  color: #04121c; font-size: 15px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: 0.2s;
+  box-shadow: 0 4px 20px rgba(0,212,255,0.2);
+}
+.submit:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(0,212,255,0.3); }
+.submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.msg {
+  margin-top: 14px; padding: 10px 14px; border-radius: 12px;
+  font-size: 13px; text-align: center; display: none; line-height: 1.5;
+}
+.msg.error { display: block; background: rgba(255,80,90,0.12); border: 1px solid rgba(255,80,90,0.25); color: #ff9aa2; }
+.msg.ok    { display: block; background: rgba(0,255,136,0.1);  border: 1px solid rgba(0,255,136,0.25);  color: #6ee7a8; }
+.msg.info  { display: block; background: rgba(0,212,255,0.1);  border: 1px solid rgba(0,212,255,0.25);  color: #7ec8e3; }
+
+.back {
+  display: block; text-align: center; margin-top: 18px;
+  color: rgba(224,230,240,0.35); font-size: 13px; text-decoration: none; transition: 0.2s;
+}
+.back:hover { color: #00d4ff; }
+
+.hint { margin-top: 10px; font-size: 11px; color: rgba(224,230,240,0.3); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>✦ 星际游戏合集</h1>
+  <p class="sub">登录后成绩将保存在云端</p>
+
+  <div class="tabs">
+    <button class="tab active" id="tabLogin">登录</button>
+    <button class="tab" id="tabReg">注册</button>
+  </div>
+
+  <form id="form" autocomplete="on">
+    <div class="field" id="fUser" style="display:none">
+      <label for="username">用户名</label>
+      <input type="text" id="username" placeholder="起个名字" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="email">邮箱</label>
+      <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+    </div>
+    <div class="field">
+      <label for="password">密码</label>
+      <input type="password" id="password" placeholder="至少 6 位" required autocomplete="current-password">
+    </div>
+    <button type="submit" class="submit" id="submit">登录</button>
+  </form>
+
+  <div class="msg" id="msg"></div>
+  <p class="hint" id="hint">未配置 Supabase 时仅能离线游玩</p>
+  <a class="back" href="index.html">← 返回游戏列表</a>
+</div>
+
+<!-- Supabase SDK → 配置 → 认证模块，顺序不能颠倒 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+(function () {
+  var isReg = false;
+  var tabLogin = document.getElementById('tabLogin');
+  var tabReg   = document.getElementById('tabReg');
+  var fUser    = document.getElementById('fUser');
+  var submit   = document.getElementById('submit');
+  var msg      = document.getElementById('msg');
+  var hint     = document.getElementById('hint');
+
+  function setMode(reg) {
+    isReg = reg;
+    tabLogin.classList.toggle('active', !reg);
+    tabReg.classList.toggle('active', reg);
+    fUser.style.display = reg ? 'block' : 'none';
+    submit.textContent = reg ? '注册' : '登录';
+    document.getElementById('password').autocomplete = reg ? 'new-password' : 'current-password';
+    show('');
+  }
+
+  tabLogin.addEventListener('click', function () { setMode(false); });
+  tabReg.addEventListener('click', function () { setMode(true); });
+
+  function show(text, type) {
+    if (!text) { msg.className = 'msg'; msg.textContent = ''; return; }
+    msg.className = 'msg ' + type;
+    msg.textContent = text;
+  }
+
+  // 未配置 Supabase 时给出明确提示，而不是让用户点了没反应
+  if (!window.SUPABASE_ENABLED) {
+    show('尚未配置 Supabase（config.js 里填 URL 与 anon key）。目前仅可离线游玩，成绩保存在本机。', 'info');
+    submit.disabled = true;
+  } else {
+    hint.textContent = '密码由 Supabase 加密存储，本站无法读取你的明文密码';
+  }
+
+  document.getElementById('form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var email = document.getElementById('email').value.trim();
+    var pwd   = document.getElementById('password').value;
+    var uname = document.getElementById('username').value.trim();
+
+    if (pwd.length < 6) { show('密码至少 6 位', 'error'); return; }
+    if (isReg && !uname) { show('请填写用户名', 'error'); return; }
+
+    submit.disabled = true;
+    submit.textContent = '处理中…';
+
+    try {
+      if (isReg) {
+        var r = await Auth.signUp(email, pwd, uname);
+        if (r.error) { show(r.error.message || '注册失败', 'error'); }
+        else if (r.needConfirm) {
+          show('注册成功！请先到邮箱点击确认链接，然后再登录。', 'ok');
+          setMode(false);
+        } else {
+          show('注册成功，正在进入…', 'ok');
+          setTimeout(function () { location.href = 'index.html'; }, 800);
+        }
+      } else {
+        var s = await Auth.signIn(email, pwd);
+        if (s.error) { show('邮箱或密码不正确', 'error'); }
+        else {
+          show('登录成功，正在进入…', 'ok');
+          setTimeout(function () { location.href = 'index.html'; }, 600);
+        }
+      }
+    } catch (err) {
+      show('网络或服务异常：' + (err && err.message ? err.message : '未知错误'), 'error');
+    }
+
+    submit.disabled = false;
+    submit.textContent = isReg ? '注册' : '登录';
+  });
+
+  // 已登录则直接回首页
+  Auth.getUser().then(function (u) { if (u) location.href = 'index.html'; });
+})();
+</script>
+</body>
+</html>

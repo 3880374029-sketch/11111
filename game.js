@@ -260,6 +260,11 @@ function updateLanguage() {
         el.textContent = CONFIG.language === "zh" ? el.dataset.zh : el.dataset.en;
     });
     document.title = t.title;
+
+    // 模式/难度按钮与记录是 JS 动态生成的，语言切换后需重新渲染
+    renderModeSelect();
+    renderDiffSelect();
+    updateModeRecord();
 }
 
 // ===== AUDIO SYSTEM =====
@@ -600,14 +605,25 @@ function spawnEnemy() {
     const types = Object.keys(CONFIG.enemies.types);
     const type = types[Math.floor(Math.random() * types.length)];
     const config = CONFIG.enemies.types[type];
-    
+    const d = getDifficulty();
+
+    // 无尽模式：强度随时间持续递增（每存活 30 秒提升一档）
+    const endlessBoost = STATE.mode === "endless"
+        ? 1 + Math.floor(STATE.survivalTime / 30) * 0.25
+        : 1;
+
+    // 难度同时作用于血量与速度
+    const hp = (config.hp + STATE.wave * 5) * d.enemyHp * endlessBoost;
+    const speed = config.speed * (1 + STATE.wave * 0.1) * d.enemySpeed
+                  * Math.min(1.8, endlessBoost);
+
     STATE.enemies.push({
         x: Math.random() * (W - config.size) + config.size/2,
         y: -config.size,
         size: config.size,
-        speed: config.speed * (1 + STATE.wave * 0.1),
-        hp: config.hp + STATE.wave * 5,
-        maxHp: config.hp + STATE.wave * 5,
+        speed,
+        hp,
+        maxHp: hp,
         type,
         color: config.color,
         score: config.score,
@@ -635,7 +651,7 @@ function updateEnemies(dt) {
 
         // 敌机到达底部，扣血
         if (e.y > H + e.size) {
-            STATE.hp -= 10;
+            STATE.hp -= 10 * getDifficulty().enemyDmg;
             STATE.combo = 0;
             STATE.shake = 8;
             updateHPBar();
@@ -762,7 +778,9 @@ const POWERUP_KEYS = Object.keys(POWERUP_DEFS);
 
 function maybeDropPowerup(x, y) {
     if (STATE.boss) return;                    // Boss 战期间不掉落
-    const chance = STATE.hp < 45 ? 0.22 : 0.13; // 残血时掉落率更高
+    // 基础掉落率（残血时更高），再按难度缩放
+    const base = STATE.hp < 45 ? 0.22 : 0.13;
+    const chance = base * getDifficulty().dropMul;
     if (Math.random() > chance) return;
 
     let type;
@@ -892,7 +910,7 @@ function hitPlayer(amount) {
         sound.play("hit");
         return;
     }
-    STATE.hp -= amount;
+    STATE.hp -= amount * getDifficulty().enemyDmg;   // 难度缩放受到的伤害
     STATE.combo = 0;
     STATE.shake = 14;
     STATE.screenFlash = Math.max(STATE.screenFlash, 0.35);
@@ -1177,19 +1195,23 @@ function checkWaveProgress() {
 
     // 阈值累积递增：升到第 N 波需要 250*N*(N+1) 分。
     // 这样 Boss 的高额奖励不会让波次瞬间跳跃好几级。
+    const bossEvery = getDifficulty().bossEvery;
+    const allowBoss = STATE.mode !== "timed";            // 限时模式不出 Boss，纯刷分
+
     let advanced = false;
     while (STATE.score >= 250 * STATE.wave * (STATE.wave + 1)) {
         STATE.wave++;
         advanced = true;
-        if (STATE.wave % 5 === 0) break;                 // 到达 Boss 波，停止继续推进
+        if (allowBoss && STATE.wave % bossEvery === 0) break;   // 到达 Boss 波，停止继续推进
     }
     if (!advanced) return;
 
-    CONFIG.enemies.spawnInterval = Math.max(500, 1500 - STATE.wave * 80);
+    // 生成间隔随波次加快，基准受难度影响
+    CONFIG.enemies.spawnInterval = Math.max(500, 1500 * getDifficulty().spawnMul - STATE.wave * 80);
     updateHUD();
 
-    if (STATE.wave % 5 === 0) {
-        spawnBoss();                                     // 每 5 波迎战 Boss
+    if (allowBoss && STATE.wave % bossEvery === 0) {
+        spawnBoss();                                     // 按难度间隔迎战 Boss
     } else {
         STATE.waveBanner = {
             text: CONFIG.language === "zh" ? `第 ${STATE.wave} 波` : `WAVE ${STATE.wave}`,
@@ -1218,8 +1240,16 @@ function updateCombo() {
 }
 
 function updateHPBar() {
-    const hpPercent = Math.max(0, STATE.hp / CONFIG.player.maxHP * 100);
+    // 生命上限随难度变化，分母要用当前难度的数值
+    const maxHP = getDifficulty().playerHP;
+    const hpPercent = Math.max(0, STATE.hp / maxHP * 100);
     document.getElementById("hpBar").style.width = hpPercent + "%";
+}
+
+// 限时模式倒计时显示
+function updateTimerDisplay() {
+    const el = document.getElementById("timerValue");
+    if (el) el.textContent = Math.max(0, Math.ceil(STATE.timeLeft));
 }
 
 // ===== HIGH SCORE (localStorage) =====
@@ -1287,14 +1317,19 @@ function startGame() {
     STATE.wave = 1;
     STATE.combo = 0;
     STATE.maxCombo = 0;
-    STATE.hp = CONFIG.player.maxHP;
+    const d = getDifficulty();
+    STATE.hp = d.playerHP;                              // 难度决定初始生命
     STATE.enemies = [];
     STATE.bullets = [];
     STATE.particles = [];
     STATE.lastFireTime = 0;
     STATE.lastSpawnTime = Date.now();
     STATE.shake = 0;
-    CONFIG.enemies.spawnInterval = 1500;
+    CONFIG.enemies.spawnInterval = 1500 * d.spawnMul;   // 难度决定生成节奏
+
+    // 模式相关计时
+    STATE.timeLeft = STATE.mode === "timed" ? CONFIG.timedDuration : 0;
+    STATE.survivalTime = 0;
 
     // 新系统重置
     STATE.enemyBullets = [];
@@ -1308,9 +1343,17 @@ function startGame() {
     STATE.screenFlash = 0;
     STATE.kills = 0;
     
-    // 开局波次提示
+    // 开局提示（按模式显示不同文案）
+    const zh = CONFIG.language === "zh";
+    let bannerText = zh ? "第 1 波" : "WAVE 1";
+    if (STATE.mode === "endless") {
+        bannerText = zh ? "无尽模式 · 开始" : "ENDLESS · START";
+    } else if (STATE.mode === "timed") {
+        bannerText = zh ? `限时挑战 · ${CONFIG.timedDuration}秒` : `TIME ATTACK · ${CONFIG.timedDuration}s`;
+    }
+
     STATE.waveBanner = {
-        text: CONFIG.language === "zh" ? "第 1 波" : "WAVE 1",
+        text: bannerText,
         life: 1600,
         maxLife: 1600,
     };
@@ -1323,7 +1366,15 @@ function startGame() {
     
     hideAllScreens();
     document.getElementById("hud").classList.remove("hidden");
-    
+
+    // 仅限时模式显示倒计时面板
+    const timerPanel = document.getElementById("timerPanel");
+    if (timerPanel) {
+        if (STATE.mode === "timed") timerPanel.classList.remove("hidden");
+        else timerPanel.classList.add("hidden");
+    }
+    updateTimerDisplay();
+
     // 启动游戏循环
     if (STATE.animFrameId) cancelAnimationFrame(STATE.animFrameId);
     lastTime = performance.now();
@@ -1348,39 +1399,102 @@ function resumeGame() {
     STATE.animFrameId = requestAnimationFrame(gameLoop);
 }
 
-function endGame() {
+// timeUp: 是否因限时模式时间耗尽而结束（true 时标题显示"时间到"）
+function endGame(timeUp) {
     // 幂等守卫：同一帧内可能同时触发"漏机"与"撞机"，避免重复结算
     if (STATE.screen === "gameover") return;
-    
+
     STATE.screen = "gameover";
     cancelAnimationFrame(STATE.animFrameId);
-    
-    // 保存最高分
+
+    const zh = CONFIG.language === "zh";
+
+    // 保存全局最高分
     const finalScore = Math.floor(STATE.score);
     const hs = getHighScore();
     const isNewRecord = finalScore > hs;
     if (isNewRecord) setHighScore(finalScore);
-    
+
+    // 保存当前「模式×难度」的最佳记录
+    const prevBest = getRecord(STATE.mode, STATE.difficulty);
+    const best = saveRecord(STATE.mode, STATE.difficulty, {
+        score: finalScore,
+        wave: STATE.wave,
+        kills: STATE.kills,
+        survived: STATE.survivalTime,
+    });
+
+    // 已登录则同步到 Supabase。未登录 / 未配置 / 网络异常都静默跳过，
+    // 保证本地结算流程不受影响。
+    if (typeof Auth !== "undefined" && Auth) {
+        Auth.saveRecord("defender", STATE.mode, STATE.difficulty, {
+            score: finalScore,
+            wave: STATE.wave,
+            kills: STATE.kills,
+            survived_seconds: Math.floor(STATE.survivalTime)
+        }).catch(function () { /* 云同步失败时忽略 */ });
+    }
+    // 本局是否刷新了该模式下的最佳
+    const beatMode = !prevBest || (
+        STATE.mode === "endless"
+            ? (STATE.survivalTime > (prevBest.survived || 0) || STATE.kills > (prevBest.kills || 0))
+            : STATE.mode === "timed"
+                ? (finalScore > (prevBest.score || 0) || STATE.kills > (prevBest.kills || 0))
+                : (STATE.wave > (prevBest.wave || 0) || finalScore > (prevBest.score || 0))
+    );
+
     // 填充结算数据
     document.getElementById("finalScore").textContent = finalScore;
     document.getElementById("finalWave").textContent = STATE.wave;
     document.getElementById("finalKills").textContent = STATE.kills;
     document.getElementById("finalCombo").textContent = STATE.maxCombo;
     document.getElementById("bestScore").textContent = getHighScore();
-    
+
+    // 存活时长（仅无尽模式显示）
+    const rowSurvived = document.getElementById("rowSurvived");
+    if (rowSurvived) {
+        if (STATE.mode === "endless") {
+            rowSurvived.classList.remove("hidden");
+            document.getElementById("finalSurvived").textContent =
+                Math.floor(STATE.survivalTime) + (zh ? " 秒" : "s");
+        } else {
+            rowSurvived.classList.add("hidden");
+        }
+    }
+
+    // 本模式最佳
+    const rowModeBest = document.getElementById("rowModeBest");
+    if (rowModeBest) {
+        rowModeBest.classList.remove("hidden");
+        const el = document.getElementById("finalModeBest");
+        if (STATE.mode === "endless") {
+            el.textContent = Math.floor(best.survived || 0) + (zh ? "秒 / " : "s / ") + (best.kills || 0) + (zh ? "杀" : "k");
+        } else if (STATE.mode === "timed") {
+            el.textContent = (best.score || 0) + (zh ? " 分 / " : " pts / ") + (best.kills || 0) + (zh ? "杀" : "k");
+        } else {
+            el.textContent = (zh ? "第 " : "W") + (best.wave || 0) + (zh ? " 波 / " : " / ") + (best.score || 0) + (zh ? " 分" : " pts");
+        }
+    }
+
+    // 结束标题：区分阵亡与时间到
+    const goTitle = document.getElementById("goTitle");
+    if (goTitle) {
+        goTitle.textContent = timeUp ? (zh ? "时间到！" : "TIME UP!") : (zh ? "游戏结束" : "GAME OVER");
+    }
+
     const newRecordEl = document.getElementById("newHighScore");
-    if (isNewRecord) {
+    if (isNewRecord || beatMode) {
         newRecordEl.classList.remove("hidden");
-        newRecordEl.querySelector("span").textContent = 
-            CONFIG.language === "zh" ? "新纪录！" : "NEW RECORD!";
+        newRecordEl.querySelector("span").textContent = zh ? "新纪录！" : "NEW RECORD!";
     } else {
         newRecordEl.classList.add("hidden");
     }
-    
+
     hideAllScreens();
     showScreen("gameOverScreen");
     document.getElementById("hud").classList.add("hidden");
     updateHighScoreDisplay();
+    updateModeRecord();
 }
 
 function goToMenu() {
@@ -1390,6 +1504,7 @@ function goToMenu() {
     showScreen("startScreen");
     document.getElementById("hud").classList.add("hidden");
     updateHighScoreDisplay();
+    updateModeRecord();     // 回菜单时刷新「当前模式×难度」的最佳记录
 }
 
 // ===== MAIN GAME LOOP =====
@@ -1415,6 +1530,19 @@ function gameLoop(timestamp) {
     // ---- 逻辑更新 ----
     updateStars();
     handleInput();
+
+    // 模式计时：限时模式倒计时归零即结束；无尽模式累计存活时长
+    if (STATE.mode === "timed") {
+        STATE.timeLeft -= dt / 1000;
+        updateTimerDisplay();
+        if (STATE.timeLeft <= 0) {
+            STATE.timeLeft = 0;
+            endGame(true);          // 时间到，非阵亡
+            return;
+        }
+    } else if (STATE.mode === "endless") {
+        STATE.survivalTime += dt / 1000;
+    }
     updateBullets();
     updateEnemyBullets(dt);
     updateFloats(dt);
@@ -1627,6 +1755,131 @@ canvas.addEventListener("touchmove", handleTouch, { passive: false });
 
 canvas.addEventListener("touchend", () => { isPointerDown = false; }, { passive: false });
 canvas.addEventListener("touchcancel", () => { isPointerDown = false; }, { passive: false });
+
+// ===== 模式与难度选择 =====
+function getDifficulty() {
+    return CONFIG.difficulties[STATE.difficulty] || CONFIG.difficulties.normal;
+}
+
+function getMode() {
+    return CONFIG.modes[STATE.mode] || CONFIG.modes.classic;
+}
+
+// 生成模式选择卡片
+function renderModeSelect() {
+    const grid = document.getElementById("modeSelectGrid");
+    if (!grid) return;
+    const zh = CONFIG.language === "zh";
+    grid.innerHTML = "";
+    Object.values(CONFIG.modes).forEach(m => {
+        const card = document.createElement("div");
+        card.className = "mode-option" + (m.key === STATE.mode ? " active" : "");
+        card.innerHTML = '<span class="mo-name">' + (zh ? m.zh : m.en) + '</span>'
+                       + '<span class="mo-desc">' + (zh ? m.descZh : m.descEn) + '</span>';
+        card.addEventListener("click", () => {
+            STATE.mode = m.key;
+            renderModeSelect();
+            updateModeRecord();
+        });
+        grid.appendChild(card);
+    });
+}
+
+// 生成难度选择按钮
+function renderDiffSelect() {
+    const row = document.getElementById("diffSelectRow");
+    if (!row) return;
+    const zh = CONFIG.language === "zh";
+    row.innerHTML = "";
+    Object.values(CONFIG.difficulties).forEach(d => {
+        const btn = document.createElement("button");
+        btn.className = "diff-option" + (d.key === STATE.difficulty ? " active" : "");
+        btn.textContent = zh ? d.zh : d.en;
+        btn.addEventListener("click", () => {
+            STATE.difficulty = d.key;
+            renderDiffSelect();
+            updateModeRecord();
+        });
+        row.appendChild(btn);
+    });
+    updateDiffDesc();
+}
+
+// 难度数值说明
+function updateDiffDesc() {
+    const el = document.getElementById("diffDesc");
+    if (!el) return;
+    const d = getDifficulty();
+    const zh = CONFIG.language === "zh";
+    el.textContent = zh
+        ? `敌机血量×${d.enemyHp} · 速度×${d.enemySpeed} · 伤害×${d.enemyDmg} · 我方生命${d.playerHP} · Boss每${d.bossEvery}波`
+        : `HP×${d.enemyHp} · Spd×${d.enemySpeed} · DMG×${d.enemyDmg} · Your HP ${d.playerHP} · Boss/${d.bossEvery}w`;
+}
+
+// ===== 各模式×难度的最佳记录 =====
+const RECORD_KEY = "spaceDefenderRecords";
+
+function getRecords() {
+    try {
+        return JSON.parse(safeGet(RECORD_KEY, "{}")) || {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function getRecord(mode, diff) {
+    return getRecords()[mode + "_" + diff] || null;
+}
+
+// 保存成绩：按模式比较对应指标，取更优者
+function saveRecord(mode, diff, data) {
+    try {
+        const r = getRecords();
+        const key = mode + "_" + diff;
+        const old = r[key] || {};
+        const merged = Object.assign({}, old);
+        if (mode === "endless") {
+            merged.survived = Math.max(old.survived || 0, data.survived || 0);
+            merged.kills = Math.max(old.kills || 0, data.kills || 0);
+        } else if (mode === "timed") {
+            merged.score = Math.max(old.score || 0, data.score || 0);
+            merged.kills = Math.max(old.kills || 0, data.kills || 0);
+        } else {
+            merged.wave = Math.max(old.wave || 0, data.wave || 0);
+            merged.score = Math.max(old.score || 0, data.score || 0);
+        }
+        r[key] = merged;
+        safeSet(RECORD_KEY, JSON.stringify(r));
+        return merged;
+    } catch (e) {
+        return data;
+    }
+}
+
+// 显示当前模式+难度下的历史最佳
+function updateModeRecord() {
+    const el = document.getElementById("modeRecord");
+    if (!el) return;
+    const rec = getRecord(STATE.mode, STATE.difficulty);
+    const zh = CONFIG.language === "zh";
+    if (!rec) {
+        el.textContent = zh ? "暂无记录" : "No record yet";
+        return;
+    }
+    if (STATE.mode === "endless") {
+        el.textContent = zh
+            ? `最佳：存活 ${Math.floor(rec.survived || 0)}秒 · 击杀 ${rec.kills || 0}`
+            : `Best: ${Math.floor(rec.survived || 0)}s · ${rec.kills || 0} kills`;
+    } else if (STATE.mode === "timed") {
+        el.textContent = zh
+            ? `最佳：${rec.score || 0} 分 · 击杀 ${rec.kills || 0}`
+            : `Best: ${rec.score || 0} pts · ${rec.kills || 0} kills`;
+    } else {
+        el.textContent = zh
+            ? `最佳：第 ${rec.wave || 0} 波 · ${rec.score || 0} 分`
+            : `Best: Wave ${rec.wave || 0} · ${rec.score || 0} pts`;
+    }
+}
 
 // ===== BUTTON EVENTS =====
 function bindButton(id, handler) {

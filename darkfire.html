@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>暗火协议 · 豪华版</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #0b0910;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Georgia', serif;
+            padding: 16px;
+            margin: 0;
+        }
+        .game-box {
+            max-width: 800px;
+            width: 100%;
+            background: #17121e;
+            border-radius: 40px;
+            padding: 28px 26px 34px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.9), 0 0 0 1px rgba(200,150,255,0.15);
+            position: relative;
+            overflow: hidden;
+            transition: background 0.4s;
+        }
+        .game-box::after {
+            content: '';
+            position: absolute;
+            top: -30%;
+            right: -20%;
+            width: 120%;
+            height: 120%;
+            background: radial-gradient(circle at 80% 20%, rgba(180,80,200,0.07) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(200,160,255,0.12);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #9b86b0;
+            position: relative;
+            z-index: 1;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .brand { font-weight: 600; color: #dac6f0; text-shadow: 0 0 12px rgba(180,100,255,0.25); }
+        .stats {
+            display: flex;
+            gap: 14px;
+            font-size: 11px;
+            background: rgba(0,0,0,0.3);
+            padding: 4px 14px;
+            border-radius: 40px;
+            border: 1px solid rgba(200,160,255,0.1);
+            flex-wrap: wrap;
+        }
+        .stats span { color: #c8b0e0; }
+        .stats .val { color: #f0e0ff; font-weight: 600; min-width: 20px; display: inline-block; }
+        .scene {
+            background: rgba(30,22,40,0.5);
+            backdrop-filter: blur(2px);
+            border-radius: 28px;
+            padding: 20px 22px;
+            margin-bottom: 18px;
+            border: 1px solid rgba(200,150,255,0.06);
+            min-height: 180px;
+            position: relative;
+            z-index: 1;
+            transition: 0.3s;
+        }
+        .scene-text {
+            font-size: 17px;
+            line-height: 1.8;
+            color: #efe6fa;
+            font-weight: 300;
+            letter-spacing: 0.2px;
+            white-space: pre-wrap;
+        }
+        .scene-text .highlight { color: #f0c8ff; font-weight: 400; }
+        .scene-text .dice-result {
+            display: inline-block;
+            background: rgba(200,160,255,0.15);
+            padding: 0 12px;
+            border-radius: 30px;
+            color: #f0d8ff;
+            font-weight: 500;
+        }
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 14px 0 12px;
+            position: relative;
+            z-index: 1;
+        }
+        .choice-btn {
+            background: rgba(45,35,60,0.6);
+            border: 1px solid rgba(200,160,255,0.18);
+            border-radius: 60px;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-weight: 400;
+            color: #e8ddf5;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            backdrop-filter: blur(4px);
+            font-family: inherit;
+            letter-spacing: 0.2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .choice-btn:hover {
+            background: rgba(90,60,130,0.5);
+            border-color: #c8a0f0;
+            transform: scale(1.01);
+            box-shadow: 0 0 25px rgba(160,100,220,0.12);
+        }
+        .choice-btn:active { transform: scale(0.97); }
+        .choice-btn .tag {
+            font-size: 12px;
+            opacity: 0.6;
+            margin-left: auto;
+            background: rgba(0,0,0,0.2);
+            padding: 2px 12px;
+            border-radius: 40px;
+            white-space: nowrap;
+        }
+        .choice-btn .tag.good { color: #9fdfb0; }
+        .choice-btn .tag.bad { color: #f09a9a; }
+        .choice-btn .tag.neutral { color: #c8b0e0; }
+        .choice-btn .tag.locked { color: #ffaa66; background: rgba(255,170,100,0.15); }
+        .footer {
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #7f6b94;
+            border-top: 1px solid rgba(200,160,255,0.08);
+            padding-top: 14px;
+            position: relative;
+            z-index: 1;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .reset-btn {
+            background: transparent;
+            border: 1px solid rgba(200,160,255,0.2);
+            color: #b49fc9;
+            padding: 5px 18px;
+            border-radius: 40px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            letter-spacing: 0.5px;
+        }
+        .reset-btn:hover {
+            background: rgba(200,160,255,0.08);
+            border-color: #b89fd0;
+            color: #dccaf0;
+        }
+        .inventory {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .inv-item {
+            background: rgba(200,160,255,0.08);
+            padding: 2px 12px;
+            border-radius: 30px;
+            border: 1px solid rgba(200,160,255,0.12);
+            color: #d4c0ea;
+            font-size: 11px;
+        }
+        .progress {
+            font-size: 11px;
+            color: #8a7a9e;
+            background: rgba(0,0,0,0.2);
+            padding: 2px 12px;
+            border-radius: 40px;
+        }
+        .status-badge {
+            display: inline-block;
+            background: rgba(200,160,255,0.1);
+            padding: 2px 12px;
+            border-radius: 30px;
+            border: 1px solid rgba(200,160,255,0.1);
+            font-size: 11px;
+            color: #c8b0e0;
+        }
+        .mini-game-area {
+            margin: 14px 0 8px;
+            padding: 14px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 28px;
+            border: 1px dashed rgba(200,160,255,0.2);
+        }
+        .mini-input {
+            background: transparent;
+            border: 1px solid rgba(200,160,255,0.3);
+            color: #efe6fa;
+            padding: 6px 12px;
+            border-radius: 40px;
+            font-size: 16px;
+            width: 70px;
+            text-align: center;
+            font-family: inherit;
+        }
+        .mini-input:focus { outline: none; border-color: #c8a0f0; }
+        .mini-btn {
+            background: rgba(200,160,255,0.15);
+            border: 1px solid rgba(200,160,255,0.3);
+            color: #efe6fa;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .mini-btn:hover { background: rgba(200,160,255,0.25); }
+        .achievement-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .ach-item {
+            background: rgba(200,160,255,0.05);
+            border: 1px solid rgba(200,160,255,0.1);
+            border-radius: 30px;
+            padding: 2px 12px;
+            font-size: 11px;
+            color: #b49fc9;
+        }
+        .ach-item.unlocked { color: #f0d8ff; border-color: rgba(200,160,255,0.4); background: rgba(200,160,255,0.1); }
+        .ach-item.locked { opacity: 0.5; }
+        @media (max-width: 500px) {
+            .game-box { padding: 18px 14px; }
+            .scene-text { font-size: 15px; }
+            .choice-btn { font-size: 14px; padding: 10px 14px; }
+            .stats { font-size: 10px; gap: 8px; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-box" id="gameBox">
+    <div class="header">
+        <span class="brand">✦ 暗火协议</span>
+        <div class="stats">
+            <span>欲望 <span class="val" id="desireVal">50</span></span>
+            <span>理智 <span class="val" id="reasonVal">50</span></span>
+            <span>好感 <span class="val" id="favorVal">30</span></span>
+        </div>
+    </div>
+
+    <div class="scene" id="sceneDisplay">
+        <div class="scene-text" id="sceneText">加载故事中...</div>
+        <div id="miniGameContainer" style="margin-top:12px;"></div>
+        <div id="achievementContainer" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="choices" id="choicesContainer"></div>
+
+    <div class="footer">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span class="progress" id="progressLabel">进度 · 初遇</span>
+            <span class="status-badge" id="stateBadge">状态：清醒</span>
+            <span class="status-badge" id="timeBadge">🌙 深夜</span>
+            <div class="inventory" id="inventoryContainer"><span class="inv-item">🔑 无物品</span></div>
+        </div>
+        <button class="reset-btn" id="resetBtn">⟳ 重来</button>
+    </div>
+</div>
+
+<script>
+    // ─── 游戏核心 ──────────────────────────────────────────
+    const G = {
+        desire: 50,
+        reason: 50,
+        favor: 30,
+        inventory: [],
+        flags: {
+            hasDrunk: false,
+            hasKissed: false,
+            hasSecret: false,
+            hasDarkroom: false,
+            hasMetBefore: false,
+            hasGambled: false,
+            hasTalkedToBartender: false,
+            hasWonMiniGame: false,
+            hasLostMiniGame: false,
+        },
+        currentId: 'start',
+        dice: () => Math.floor(Math.random() * 6) + 1,
+        clamp: (v, min=0, max=100) => Math.min(max, Math.max(min, v)),
+        time: 0, // 0=深夜, 1=凌晨, 2=黎明
+        achievements: [],
+        // 随机事件
+        triggerRandom: function() {
+            if (Math.random() < 0.25) {
+                const events = [
+                    { text: '👻 一阵风吹过，吧台上的蜡烛晃动了一下，她的影子在墙上拉长。你感到一丝寒意。', effect: () => { G.reason = G.clamp(G.reason - 5); } },
+                    { text: '🎵 酒吧的爵士乐突然换了一首慢歌，她向你伸出手：「跳支舞吗？」', effect: () => { G.favor = G.clamp(G.favor + 5); } },
+                    { text: '📱 你的手机突然震动，是一条陌生号码的短信：「别喝太多，注意安全。」你疑惑地收起手机。', effect: () => { G.reason = G.clamp(G.reason + 5); } },
+                    { text: '💡 头顶的灯光忽明忽暗，她低声说：「这地方总是这样，仿佛在暗示什么。」', effect: () => { G.desire = G.clamp(G.desire + 3); } },
+                ];
+                return events[Math.floor(Math.random() * events.length)];
+            }
+            return null;
+        },
+        // 成就系统
+        unlockAchievement: function(id, name) {
+            if (!G.achievements.includes(id)) {
+                G.achievements.push(id);
+                // 显示通知（简单用alert，但为了体验，我们只更新UI）
+                updateAchievementUI();
+            }
+        },
+        checkAchievements: function() {
+            if (G.inventory.length >= 5 && !G.achievements.includes('collector')) {
+                G.unlockAchievement('collector', '🎁 收集者');
+            }
+            if (G.flags.hasKissed && G.flags.hasDarkroom && !G.achievements.includes('intimate')) {
+                G.unlockAchievement('intimate', '💋 亲密无间');
+            }
+            if (G.flags.hasDrunk && G.flags.hasGambled && !G.achievements.includes('reckless')) {
+                G.unlockAchievement('reckless', '🍻 醉生梦死');
+            }
+            if (G.reason >= 80 && !G.achievements.includes('wise')) {
+                G.unlockAchievement('wise', '🧠 清醒头脑');
+            }
+            if (G.desire >= 80 && !G.achievements.includes('passionate')) {
+                G.unlockAchievement('passionate', '🔥 烈火激情');
+            }
+            if (G.flags.hasWonMiniGame && !G.achievements.includes('lucky')) {
+                G.unlockAchievement('lucky', '🍀 幸运儿');
+            }
+            if (G.flags.hasTalkedToBartender && !G.achievements.includes('social')) {
+                G.unlockAchievement('social', '🗣️ 社交达人');
+            }
+        }
+    };
+
+    // ─── 故事节点（28个）─────────────────────────────────
+    const story = {
+
+        start: {
+            id: 'start',
+            text: `夜色浸透酒吧的每个角落，你独坐吧台，指尖摩挲着玻璃杯壁。\n\n一个穿深红西装的女人滑进旁边的座位，雪松与烟草的气息缠绕。她侧过头，目光从你的嘴唇移到你的眼睛，嘴角微扬。\n\n「一个人？」她的声音低哑，像砂纸划过丝绸。`,
+            choices: [
+                { text: '「在等一个危险的人。」', next: 'flirt1', effects: { desire: +10, favor: +5 } },
+                { text: '「也许是你把我灌醉的借口。」', next: 'flirt2', effects: { desire: +5, reason: -5 } },
+                { text: '「我只想安静喝完这杯。」', next: 'cold', effects: { reason: +10, favor: -5 } },
+                { text: '「先跟酒保聊两句。」', next: 'bartender', effects: { reason: +5, favor: +2 } }
+            ],
+            state: '初遇',
+            onEnter: function() {
+                const evt = G.triggerRandom();
+                if (evt) return { extraText: evt.text, extraEffect: evt.effect };
+                return null;
+            }
+        },
+
+        bartender: {
+            id: 'bartender',
+            text: `你转向吧台内的酒保，他正在擦一个玻璃杯。他抬头看了你一眼，又瞥了一眼旁边的女人，低声说：「那位女士经常来，但很少跟人说话。你挺特别。」\n\n他递给你一杯免费的特调：「小心点，她可不是什么简单人物。」`,
+            choices: [
+                { text: '「谢谢提醒，但我喜欢冒险。」', next: 'flirt1', effects: { desire: +10, favor: +3 } },
+                { text: '「那我还是离她远点吧。」', next: 'cold', effects: { reason: +10 } },
+                { text: '「她叫什么名字？」', next: 'name_ask', effects: { favor: +5, reason: +5 } }
+            ],
+            state: '酒保支线',
+            onEnter: function() {
+                G.flags.hasTalkedToBartender = true;
+                G.unlockAchievement('social');
+                return null;
+            }
+        },
+
+        flirt1: {
+            id: 'flirt1',
+            text: `她轻笑一声，指尖沿着吧台边缘滑向你的手背，若有若无地碰触。「危险的人已经来了。」\n\n她凑近，温热的呼吸拂过你耳廓：「我订了楼上的包间，落地窗和城市夜景……要来吗？」\n\n她的指尖在你手背画着圈，眼神里藏着火焰。`,
+            choices: [
+                { text: '「带路吧，我可不想错过夜景。」', next: 'intimate', effects: { desire: +15, favor: +10 }, condition: () => G.desire >= 40 },
+                { text: '「你身上有太多秘密，我不敢跟。」', next: 'cautious', effects: { reason: +10, favor: -5 } },
+                { text: '「先告诉我你的名字。」', next: 'name_ask', effects: { favor: +5, reason: +5 } }
+            ],
+            state: '挑逗'
+        },
+
+        flirt2: {
+            id: 'flirt2',
+            text: `她挑眉，忽然抓住你的手腕，力道轻柔却不容挣脱。「那你得先证明你的酒量。」\n\n她叫了两杯深红色的特调，推到你面前一杯，自己先饮了一口，唇边留下暗色痕迹。「喝完这杯，我可以告诉你我的名字。」`,
+            choices: [
+                { text: '一饮而尽，然后直视她。', next: 'intimate', effects: { desire: +15, reason: -10, favor: +5 }, onChoose: () => { G.flags.hasDrunk = true; } },
+                { text: '轻轻推开杯子：「我更想先知道你的秘密。」', next: 'cautious', effects: { reason: +10, favor: +5 } },
+                { text: '「不如我们玩个骰子游戏？」', next: 'dice_game', effects: { desire: +5, favor: +5 } }
+            ],
+            state: '试探'
+        },
+
+        cold: {
+            id: 'cold',
+            text: `她耸肩，并不生气，反而靠近你耳边低声说：「那好，我等你改变主意。」\n\n她留下一个写有房间号的纸条，转身离去。你捏着纸条，指尖能感到纸上的余温。`,
+            choices: [
+                { text: '扔掉纸条，独自离开。', next: 'end_alone', effects: { reason: +10 } },
+                { text: '攥紧纸条，追了上去。', next: 'intimate', effects: { desire: +10, favor: +5 } }
+            ],
+            state: '犹豫'
+        },
+
+        name_ask: {
+            id: 'name_ask',
+            text: `她微微一怔，随即笑得更深：「很少有人问我的名字。我叫伊芙琳。」\n\n她主动握住你的手：「既然你问了名字，那我们就别只做一夜的过客。」\n\n她靠近，在你耳边留下房间号：「顶楼套房，想来的话……带着你的诚意。」`,
+            choices: [
+                { text: '「我会去的。」—— 走向电梯', next: 'intimate', effects: { desire: +10, favor: +15 } },
+                { text: '「今晚先到这里吧。」', next: 'end_alone', effects: { reason: +5 } }
+            ],
+            state: '名字'
+        },
+
+        dice_game: {
+            id: 'dice_game',
+            text: `她饶有兴致地挑眉：「赌什么？」\n\n你从口袋里摸出一枚骰子：「如果我赢了，你告诉我一个秘密。如果你赢了，我陪你喝到天亮。」\n\n她点头，你掷出骰子……`,
+            choices: [
+                { text: '掷出骰子 (随机判定)', next: 'dice_result', effects: {}, isDice: true }
+            ],
+            state: '赌局',
+            onEnter: function() { G.flags.hasGambled = true; return null; }
+        },
+
+        dice_result: {
+            id: 'dice_result',
+            text: `骰子滚落桌面，最终停下……`,
+            choices: [],
+            state: '骰子结果',
+            dynamic: true
+        },
+
+        dice_lose: {
+            id: 'dice_lose',
+            text: `她轻笑：「看来今晚你得陪我喝到天亮了。」\n\n她叫来一瓶威士忌，两人一杯接一杯。你发现她喝醉时会不自觉地靠近你，呼吸变得灼热。\n\n凌晨两点，她靠在你的肩上，含糊地说：「你知道吗……我很久没这么开心了。」`,
+            choices: [
+                { text: '「我也是。」—— 扶她上楼', next: 'intimate', effects: { desire: +10, favor: +15, item: '🍷 威士忌之夜' }, onChoose: () => { G.flags.hasDrunk = true; } },
+                { text: '「你喝多了，我送你回家。」', next: 'end_trust', effects: { reason: +15, favor: +5 } }
+            ],
+            state: '醉意'
+        },
+
+        cautious: {
+            id: 'cautious',
+            text: `她盯着你看了几秒，忽然笑出声：「你比我想象的有意思。」\n\n她站起，俯身在你耳边留下一句话：「我住在顶楼套房，门牌号是你的幸运数字。想来的时候，敲门三下。」\n\n然后她消失在走廊尽头，留下你一人对着那杯未动的酒。`,
+            choices: [
+                { text: '追上去，敲响那扇门。', next: 'intimate', effects: { desire: +10, favor: +5 } },
+                { text: '离开酒吧，不再回头。', next: 'end_alone', effects: { reason: +10 } },
+                { text: '再坐一会儿，回味她说的话。', next: 'rethink', effects: { reason: +5, favor: +5 } }
+            ],
+            state: '悬疑'
+        },
+
+        rethink: {
+            id: 'rethink',
+            text: `你独自坐在空荡的酒吧里，灯光昏黄。她的气息还留在空气中。\n\n你想起她的眼神、她的温度、她留下的房间号……你掏出手机，犹豫着是否要发个信息。\n\n就在这时，酒保递来一张纸条：「那位女士让我转交的。」上面写着：『707，等你到三点。』`,
+            choices: [
+                { text: '立刻起身去707。', next: 'intimate', effects: { desire: +20, favor: +10 } },
+                { text: '把纸条收好，改天再说。', next: 'end_continue', effects: { reason: +10, favor: +5, item: '📄 纸条' } }
+            ],
+            state: '回味'
+        },
+
+        intimate: {
+            id: 'intimate',
+            text: `包间的落地窗外是整座城市的灯火。她站在玻璃前，倒影里她的轮廓妖娆。你走近，她回头，近得能数清她的睫毛。\n\n她抬手解开领口的第一颗纽扣，声音低哑：「协议很简单——今晚你属于我，我也属于你。天亮之前，彼此不问过去。」\n\n她回身，指尖抚过你的脸颊，沿着下颌线滑下。`,
+            choices: [
+                { text: '「我接受。」—— 吻住她。', next: 'end_passion', effects: { desire: +20, favor: +10 }, onChoose: () => { G.flags.hasKissed = true; } },
+                { text: '「我需要先知道你的名字。」', next: 'end_trust', effects: { favor: +10, reason: +5 } },
+                { text: '「先喝一杯，慢慢来。」', next: 'drink_room', effects: { reason: +10, desire: -5 } },
+                { text: '「我们来玩个猜数字游戏吧。」', next: 'mini_game', effects: {} }
+            ],
+            state: '亲密'
+        },
+
+        mini_game: {
+            id: 'mini_game',
+            text: `她饶有兴趣地挑眉：「猜数字？好，我心中想一个1到10之间的数字，你猜三次。猜中了我告诉你一个秘密。」\n\n你开始猜测……`,
+            choices: [],
+            state: '迷你游戏',
+            dynamic: true,
+            onEnter: function() {
+                // 生成猜数字界面
+                return { miniGame: true };
+            }
+        },
+
+        drink_room: {
+            id: 'drink_room',
+            text: `她微微一愣，随即笑着为你倒了一杯威士忌。「好，慢慢来。」\n\n你们坐在落地窗边，聊起彼此的生活。她告诉你她是个摄影师，喜欢在夜晚捕捉城市的灵魂。你告诉她你的工作，她听得认真。\n\n酒过三巡，她忽然轻声说：「你知道吗，我今晚本来只是想找个人喝酒。」\n\n「那现在呢？」你问。\n\n她看着你，目光柔软：「现在……我想带你看看我的暗房。」`,
+            choices: [
+                { text: '「我跟你去。」—— 她牵起你的手', next: 'darkroom', effects: { desire: +15, favor: +15 } },
+                { text: '「时候不早了，我该走了。」', next: 'end_alone', effects: { reason: +10 } }
+            ],
+            state: '微醺'
+        },
+
+        darkroom: {
+            id: 'darkroom',
+            text: `暗房里红灯幽幽，墙上挂满了她的作品——黑白的人像，情绪饱满。她指着一张照片说：「这是我拍过的最喜欢的一张。」\n\n照片里是一个人的背影，站在天台上，城市在脚下铺开。\n\n「那是我，」她轻声说，「三年前，我刚来这座城市。」\n\n她转过身，面对着你，距离近得能感受到彼此的心跳。「今晚，我不想再一个人了。」`,
+            choices: [
+                { text: '「我留下来陪你。」—— 拥抱她', next: 'end_passion', effects: { desire: +25, favor: +20, item: '📸 暗房回忆' }, onChoose: () => { G.flags.hasDarkroom = true; } },
+                { text: '「你需要的是朋友，而不是一夜情。」', next: 'end_trust', effects: { reason: +20, favor: +15 } }
+            ],
+            state: '暗房'
+        },
+
+        // ─── 结局与后续 ──────────────────────────────────
+
+        end_passion: {
+            id: 'end_passion',
+            text: `她回应了你的吻，带着征服和温柔。那一夜，窗外的霓虹与屋内的温度融为一体。\n\n清晨，她在晨光中递给你一杯咖啡，笑着说：「协议结束。但如果你想续约……」她留下一个电话号码，压在杯底。\n\n你拿起手机，在「是否保存」的提示前停留。`,
+            choices: [
+                { text: '保存号码 —— 故事未完。', next: 'after_passion', effects: { favor: +15, desire: +5, item: '📞 号码' } },
+                { text: '删除号码 —— 一夜足够。', next: 'end_alone', effects: { reason: +10 } }
+            ],
+            state: '激情'
+        },
+
+        after_passion: {
+            id: 'after_passion',
+            text: `你存下了号码，心底多了一段记忆。几天后，你拨通了那个号码。\n\n电话那头，她的声音带着笑意：「我就知道你会打来。」\n\n你们约在同一个酒吧见面。这一次，她穿了一身墨绿色的裙子，见到你时，她主动牵起你的手。\n\n「这次，我们慢慢来。」她说。`,
+            choices: [
+                { text: '「好，慢慢来。」—— 开始一段关系', next: 'end_continue', effects: { favor: +30, desire: +10 } },
+                { text: '「我可能还是不适合认真。」', next: 'end_alone', effects: { reason: +10 } }
+            ],
+            state: '续约'
+        },
+
+        end_trust: {
+            id: 'end_trust',
+            text: `她沉默片刻，轻声道：「我叫伊芙琳。很久没人问过我的名字了。」\n\n她主动握住你的手，十指相扣。「既然你问了名字，那协议就得改一改——我们慢慢来。」\n\n她靠在你肩上，窗外天色渐亮。`,
+            choices: [
+                { text: '「好，慢慢来。」—— 从朋友开始。', next: 'after_trust', effects: { favor: +20, reason: +5 } },
+                { text: '「可我只有今晚。」—— 推开她。', next: 'end_alone', effects: { desire: -10, reason: +5 } }
+            ],
+            state: '信任'
+        },
+
+        after_trust: {
+            id: 'after_trust',
+            text: `你和她成了朋友，偶尔一起喝咖啡、散步。她向你展示更多自己的作品，你也跟她分享你的生活。\n\n一个月后的夜晚，她发来一条信息：「我在天台上，城市的灯都亮了。你要来吗？」\n\n你赶到时，她正对着夜景微笑。她转过头，眼中映着灯火。\n\n「我想，我可能爱上你了。」她低声说。`,
+            choices: [
+                { text: '「我也爱你。」—— 拥抱她', next: 'end_continue', effects: { favor: +30, desire: +15, item: '💞 真心' } },
+                { text: '「我还没准备好。」—— 保持距离', next: 'end_alone', effects: { reason: +10 } }
+            ],
+            state: '升温'
+        },
+
+        end_alone: {
+            id: 'end_alone',
+            text: `你独自走出酒吧，夜风迎面。那抹红唇和暗香留在身后，像一场未完成的梦。\n\n你走在空荡的街道上，心里却回味着刚才的每一个瞬间。也许某天你会再回来，也许不会。`,
+            choices: [
+                { text: '「再回去喝一杯。」—— 回到酒吧', next: 'start', effects: { desire: -5, reason: -5 } },
+                { text: '「彻底离开，不再回头。」—— 结束', next: 'final_end', effects: {} }
+            ],
+            state: '落幕'
+        },
+
+        end_continue: {
+            id: 'end_continue',
+            text: `手机里多了一个名字，心底多了一段记忆。\n\n你们的故事没有结束，只是换了一种方式燃烧。未来的某天，当你再次看到霓虹灯，也许会想起那个穿深红西装的女人。\n\n—— 而那时，你会主动拨通那个号码，或者收到她的消息。`,
+            choices: [
+                { text: '「我想她了。」—— 主动联系', next: 'after_passion', effects: { desire: +10, favor: +10 } },
+                { text: '「让时间证明一切。」—— 顺其自然', next: 'final_end', effects: { reason: +10 } }
+            ],
+            state: '未完待续'
+        },
+
+        final_end: {
+            id: 'final_end',
+            text: `夜色渐渐褪去，黎明将至。\n\n这段故事已经画上句号，但回忆会留在心里。\n\n如果你愿意，可以重新开始，书写不同的夜晚。`,
+            choices: [
+                { text: '重新开始 (保留数值)', next: 'start', effects: {} }
+            ],
+            state: '终章'
+        },
+
+        hidden_ending: {
+            id: 'hidden_ending',
+            text: `✨ 你集齐了所有回忆的碎片：威士忌之夜、纸条、暗房回忆、号码、真心、骰子、还有更多……\n\n你站在她面前，她微笑着看着你：「你终于找到了全部的我。」\n\n你们相拥在晨光里，这一次，没有任何协议，只有彼此。\n\n🎉 隐藏结局达成！`,
+            choices: [
+                { text: '重新开始', next: 'start', effects: {} }
+            ],
+            state: '隐藏结局'
+        },
+
+        // 以下两个节点为整合时补充：原文迷你游戏结束后会跳转到不存在的场景，
+        // 导致故事直接跳回开头。补上后胜负各有归宿。
+        after_minigame_win: {
+            id: 'after_minigame_win',
+            text: `她靠得更近，指尖轻点你的胸口：「你赢了，说吧，想知道什么？」\n\n你笑了笑：「我想知道……你愿不愿意跟我走。」\n\n她挑眉，牵起你的手。`,
+            choices: [
+                { text: '「跟我走。」', next: 'intimate', effects: { desire: +15, favor: +15 } },
+                { text: '「今晚就到这里。」', next: 'end_trust', effects: { reason: +10, favor: +10 } }
+            ],
+            state: '胜利'
+        },
+
+        after_minigame_lose: {
+            id: 'after_minigame_lose',
+            text: `她轻叹，又为你倒了一杯：「输了就要罚酒哦。」\n\n酒意上涌，你看着她的眼神渐渐模糊又清晰。`,
+            choices: [
+                { text: '「罚就罚。」—— 一饮而尽', next: 'intimate', effects: { desire: +10, reason: -5, favor: +10 } },
+                { text: '「我认输，先走了。」', next: 'end_alone', effects: { reason: +10 } }
+            ],
+            state: '败北'
+        }
+    };
+
+    // ─── 辅助函数 ──────────────────────────────────────────
+
+    function applyEffects(effects) {
+        if (!effects) return;
+        if (effects.desire) G.desire = G.clamp(G.desire + effects.desire);
+        if (effects.reason) G.reason = G.clamp(G.reason + effects.reason);
+        if (effects.favor) G.favor = G.clamp(G.favor + effects.favor);
+        if (effects.item) {
+            if (!G.inventory.includes(effects.item)) G.inventory.push(effects.item);
+        }
+        updateStatsUI();
+        updateInventoryUI();
+        updateBadge();
+        updateTime();
+        G.checkAchievements();
+    }
+
+    function updateStatsUI() {
+        document.getElementById('desireVal').textContent = G.desire;
+        document.getElementById('reasonVal').textContent = G.reason;
+        document.getElementById('favorVal').textContent = G.favor;
+        const box = document.getElementById('gameBox');
+        const warmth = Math.min(100, Math.max(0, G.desire * 0.6 + 20));
+        const cool = Math.min(100, Math.max(0, G.reason * 0.6 + 20));
+        box.style.background = `rgb(${20 + warmth*0.3}, ${14 + (100-warmth)*0.2}, ${30 + cool*0.2})`;
+    }
+
+    function updateInventoryUI() {
+        const container = document.getElementById('inventoryContainer');
+        if (G.inventory.length === 0) {
+            container.innerHTML = '<span class="inv-item">🔑 无物品</span>';
+        } else {
+            container.innerHTML = G.inventory.map(item => `<span class="inv-item">${item}</span>`).join('');
+        }
+    }
+
+    function updateBadge() {
+        let status = '清醒';
+        if (G.flags.hasDrunk) status = '微醺';
+        if (G.flags.hasKissed) status = '缠绵';
+        if (G.flags.hasDarkroom) status = '暧昧';
+        if (G.flags.hasSecret) status = '知心';
+        document.getElementById('stateBadge').textContent = '状态：' + status;
+    }
+
+    function updateTime() {
+        // 根据进度改变时间（简化：每进入一个新节点，时间推进）
+        const timeLabels = ['🌙 深夜', '🌓 凌晨', '🌅 黎明'];
+        G.time = Math.min(2, G.time + 0.3);
+        document.getElementById('timeBadge').textContent = timeLabels[Math.floor(G.time) % 3];
+    }
+
+    function updateAchievementUI() {
+        const container = document.getElementById('achievementContainer');
+        const allAchievements = [
+            { id: 'collector', name: '🎁 收集者' },
+            { id: 'intimate', name: '💋 亲密无间' },
+            { id: 'reckless', name: '🍻 醉生梦死' },
+            { id: 'wise', name: '🧠 清醒头脑' },
+            { id: 'passionate', name: '🔥 烈火激情' },
+            { id: 'lucky', name: '🍀 幸运儿' },
+            { id: 'social', name: '🗣️ 社交达人' }
+        ];
+        let html = '<div class="achievement-list">';
+        allAchievements.forEach(a => {
+            const unlocked = G.achievements.includes(a.id);
+            html += `<span class="ach-item ${unlocked ? 'unlocked' : 'locked'}">${unlocked ? '✅' : '🔒'} ${a.name}</span>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function checkCondition(cond) {
+        if (!cond) return true;
+        if (typeof cond === 'function') return cond();
+        return true;
+    }
+
+    function generateDiceResult() {
+        const roll = G.dice();
+        const success = roll >= 4;
+        let text = `骰子滚落桌面，最终停在 <span class="dice-result">${roll}</span>。\n\n`;
+        let nextId = '';
+        let effects = {};
+        if (success) {
+            text += `「你赢了，」她眼神闪烁，「我确实有个秘密——我叫伊芙琳，而且……我今晚本来没打算跟任何人走，但你不同。」\n\n她主动拉起你的手：「来吧，房间号是 707。」`;
+            nextId = 'intimate';
+            effects = { desire: +15, favor: +15, item: '🎲 伊芙琳的骰子' };
+            G.flags.hasSecret = true;
+        } else {
+            text += `她轻笑：「看来今晚你得陪我喝到天亮了。」\n\n她叫来一瓶威士忌，两人一杯接一杯。你发现她喝醉时会不自觉地靠近你，呼吸变得灼热。`;
+            nextId = 'dice_lose';
+            effects = { desire: +5, favor: +5, reason: -10 };
+        }
+        const tempNode = {
+            id: 'dice_result_temp',
+            text: text,
+            choices: [
+                { text: '继续', next: nextId, effects: effects }
+            ],
+            state: '骰子结果'
+        };
+        return tempNode;
+    }
+
+    // ─── 迷你游戏 ──────────────────────────────────────────
+
+    function renderMiniGame() {
+        const container = document.getElementById('miniGameContainer');
+        container.innerHTML = '';
+        // 生成猜数字游戏
+        const target = Math.floor(Math.random() * 10) + 1;
+        let attempts = 0;
+        const maxAttempts = 3;
+        const gameDiv = document.createElement('div');
+        gameDiv.className = 'mini-game-area';
+        gameDiv.innerHTML = `
+            <div style="color:#d4c0ea; margin-bottom:8px;">猜一个1~10之间的数字 (剩余 <span id="attemptsLeft">${maxAttempts}</span> 次)</div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <input type="number" id="guessInput" class="mini-input" min="1" max="10" placeholder="?">
+                <button id="guessBtn" class="mini-btn">猜</button>
+                <span id="miniResult" style="color:#b89fd0; font-size:14px;"></span>
+            </div>
+        `;
+        container.appendChild(gameDiv);
+
+        const input = document.getElementById('guessInput');
+        const btn = document.getElementById('guessBtn');
+        const resultSpan = document.getElementById('miniResult');
+        const attemptsSpan = document.getElementById('attemptsLeft');
+
+        btn.addEventListener('click', function() {
+            const guess = parseInt(input.value);
+            if (isNaN(guess) || guess < 1 || guess > 10) {
+                resultSpan.textContent = '请输入1~10的数字';
+                return;
+            }
+            attempts++;
+            attemptsSpan.textContent = maxAttempts - attempts;
+            if (guess === target) {
+                resultSpan.textContent = '🎉 猜对了！她微笑着靠近你：「你赢了。」';
+                resultSpan.style.color = '#9fdfb0';
+                G.flags.hasWonMiniGame = true;
+                G.unlockAchievement('lucky');
+                applyEffects({ desire: +10, favor: +10, item: '🎯 胜利勋章' });
+                btn.disabled = true;
+                // 自动跳转
+                setTimeout(() => {
+                    renderScene('after_minigame_win');
+                }, 1500);
+            } else {
+                const hint = guess < target ? '小了' : '大了';
+                resultSpan.textContent = `❌ ${hint}，再试一次`;
+                resultSpan.style.color = '#f09a9a';
+                if (attempts >= maxAttempts) {
+                    resultSpan.textContent = `😞 三次都错了，答案是 ${target}。她轻叹：「看来今晚你得多喝两杯了。」`;
+                    G.flags.hasLostMiniGame = true;
+                    applyEffects({ reason: -5, desire: +5 });
+                    btn.disabled = true;
+                    setTimeout(() => {
+                        renderScene('after_minigame_lose');
+                    }, 1500);
+                }
+            }
+        });
+    }
+
+    // ─── 渲染引擎 ──────────────────────────────────────────
+
+    function renderScene(stateId) {
+        let node = story[stateId];
+        if (stateId === 'dice_result') {
+            node = generateDiceResult();
+        }
+        if (!node) node = story.start;
+
+        // 执行 onEnter
+        let extraText = '';
+        let extraEffect = null;
+        let miniGame = false;
+        if (node.onEnter) {
+            const result = node.onEnter();
+            if (result) {
+                if (result.extraText) extraText = result.extraText;
+                if (result.extraEffect) extraEffect = result.extraEffect;
+                if (result.miniGame) miniGame = true;
+            }
+        }
+
+        // 更新进度
+        document.getElementById('progressLabel').textContent = '进度 · ' + (node.state || '—');
+
+        // 更新文本
+        let fullText = node.text;
+        if (extraText) fullText += '\n\n' + extraText;
+        document.getElementById('sceneText').innerHTML = fullText.replace(/\n/g, '<br />');
+
+        // 清空选择容器
+        const container = document.getElementById('choicesContainer');
+        container.innerHTML = '';
+
+        // 清空迷你游戏容器
+        const miniContainer = document.getElementById('miniGameContainer');
+        miniContainer.innerHTML = '';
+
+        // 如果节点需要迷你游戏
+        if (miniGame) {
+            renderMiniGame();
+        }
+
+        // 处理隐藏结局入口
+        if (G.inventory.length >= 8 && !G.flags._hiddenShown) {
+            const hiddenBtn = document.createElement('button');
+            hiddenBtn.className = 'choice-btn';
+            hiddenBtn.innerHTML = `<span>🌟 你感到所有碎片在共鸣……（前往隐藏结局）</span><span class="tag good">解锁</span>`;
+            hiddenBtn.addEventListener('click', () => {
+                G.flags._hiddenShown = true;
+                renderScene('hidden_ending');
+            });
+            container.appendChild(hiddenBtn);
+            G.flags._hiddenShown = true;
+        }
+
+        // 生成普通选项
+        if (node.choices && node.choices.length > 0) {
+            node.choices.forEach((choice) => {
+                if (!checkCondition(choice.condition)) return;
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                let tagText = '';
+                let tagClass = 'neutral';
+                if (choice.effects) {
+                    const parts = [];
+                    if (choice.effects.desire) parts.push(`欲望${choice.effects.desire>0?'+':''}${choice.effects.desire}`);
+                    if (choice.effects.reason) parts.push(`理智${choice.effects.reason>0?'+':''}${choice.effects.reason}`);
+                    if (choice.effects.favor) parts.push(`好感${choice.effects.favor>0?'+':''}${choice.effects.favor}`);
+                    if (choice.effects.item) parts.push(`+${choice.effects.item}`);
+                    if (parts.length > 0) {
+                        tagText = parts.join(' ');
+                        const total = (choice.effects.desire||0) + (choice.effects.reason||0) + (choice.effects.favor||0);
+                        if (total > 0) tagClass = 'good';
+                        else if (total < 0) tagClass = 'bad';
+                    }
+                }
+                if (choice.isDice) { tagText = '🎲 随机'; tagClass = 'neutral'; }
+                btn.innerHTML = `<span>${choice.text}</span>${tagText ? `<span class="tag ${tagClass}">${tagText}</span>` : ''}`;
+                btn.addEventListener('click', () => {
+                    if (choice.onChoose) choice.onChoose();
+                    if (choice.effects) applyEffects(choice.effects);
+                    if (extraEffect) extraEffect();
+                    if (choice.isDice) {
+                        renderScene('dice_result');
+                        return;
+                    }
+                    if (choice.next) renderScene(choice.next);
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        // 如果没有任何选项，添加默认
+        if (container.children.length === 0 && !miniGame) {
+            const msg = document.createElement('div');
+            msg.style.cssText = 'color: #b89fd0; font-size: 15px; text-align: center; padding: 12px; border: 1px dashed rgba(200,160,255,0.2); border-radius: 60px;';
+            msg.textContent = '✧ 此路已尽 · 点击下方「重来」 ✧';
+            container.appendChild(msg);
+        }
+
+        // 更新成就UI
+        updateAchievementUI();
+        updateBadge();
+        updateTime();
+        G.checkAchievements();
+        document.querySelector('.scene').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // ─── 重置 ──────────────────────────────────────────────
+
+    function resetGame() {
+        G.desire = 50;
+        G.reason = 50;
+        G.favor = 30;
+        G.inventory = [];
+        G.flags = {
+            hasDrunk: false, hasKissed: false, hasSecret: false, hasDarkroom: false,
+            hasMetBefore: false, hasGambled: false, hasTalkedToBartender: false,
+            hasWonMiniGame: false, hasLostMiniGame: false, _hiddenShown: false
+        };
+        G.time = 0;
+        G.achievements = [];
+        updateStatsUI();
+        updateInventoryUI();
+        updateAchievementUI();
+        renderScene('start');
+    }
+
+    // ─── 初始化 ────────────────────────────────────────────
+
+    document.getElementById('resetBtn').addEventListener('click', resetGame);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key >= '1' && e.key <= '9') {
+            const index = parseInt(e.key) - 1;
+            const btns = document.querySelectorAll('.choice-btn');
+            if (btns[index]) btns[index].click();
+        }
+        if (e.key === 'r' || e.key === 'R') resetGame();
+    });
+
+    // 启动
+    updateStatsUI();
+    updateInventoryUI();
+    updateAchievementUI();
+    renderScene('start');
+    console.log('✦ 暗火协议 · 豪华版 ✦ 包含迷你游戏、酒保支线、时间系统、成就系统。');
+</script>
+
+<!-- 返回游戏列表（内联样式，独立于本页自身样式） -->
+<a href="index.html" style="position:fixed;right:12px;bottom:12px;z-index:9999;padding:7px 15px;border-radius:30px;background:rgba(12,8,24,0.75);border:1px solid rgba(0,212,255,0.3);color:#7ec8e3;font-size:12px;text-decoration:none;font-family:sans-serif;letter-spacing:0.5px;box-shadow:0 4px 18px rgba(0,0,0,0.4);">← 游戏列表</a>
+</body>
+</html>

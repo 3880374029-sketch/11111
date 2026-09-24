@@ -96,6 +96,9 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; f
 /* ===== 说明页（内容较多，允许纵向滚动） ===== */
 #howToScreen { justify-content: flex-start; overflow-y: auto; padding-top: 64px; padding-bottom: 40px; }
 
+/* ===== 开始页（新增模式/难度选择后内容变多，允许滚动） ===== */
+#startScreen { justify-content: flex-start; overflow-y: auto; padding-top: 48px; padding-bottom: 40px; }
+
 /* ===== 返回游戏列表入口 ===== */
 /* 固定右下角：避开顶部 HUD 与左下角的增益状态条 */
 .back-home {
@@ -124,9 +127,95 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; f
   transform: translateY(-1px);
 }
 
+/* ===== 模式与难度选择 ===== */
+.mode-select, .diff-select {
+  width: 100%;
+  max-width: 470px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+.mode-select .sub-title, .diff-select .sub-title { margin: 0 0 8px; }
+.mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+/* 模式卡片 */
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  transition: 0.2s;
+  pointer-events: auto;
+}
+.mode-option:hover {
+  background: rgba(0,212,255,0.1);
+  border-color: rgba(0,212,255,0.3);
+}
+.mode-option.active {
+  background: rgba(0,212,255,0.15);
+  border-color: #00d4ff;
+  box-shadow: 0 0 16px rgba(0,212,255,0.2);
+}
+.mo-name { color: #e0e6f0; font-size: 13px; font-weight: 600; }
+.mode-option.active .mo-name { color: #00d4ff; }
+.mo-desc { color: #8892b0; font-size: 10px; line-height: 1.3; }
+
+/* 难度按钮 */
+.diff-row { display: flex; gap: 8px; justify-content: center; }
+.diff-option {
+  padding: 7px 22px;
+  border-radius: 30px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  color: #8892b0;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.diff-option:hover { background: rgba(0,212,255,0.08); color: #e0e6f0; }
+.diff-option.active {
+  background: rgba(0,212,255,0.18);
+  border-color: #00d4ff;
+  color: #00d4ff;
+  font-weight: 600;
+}
+.diff-desc { margin-top: 8px; font-size: 11px; color: #8892b0; }
+.mode-record { margin-top: 10px; font-size: 12px; color: #ffd700; }
+
+/* ===== 限时挑战倒计时 ===== */
+.timer-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5px 18px;
+  border-radius: 30px;
+  background: rgba(12,8,24,0.55);
+  border: 1px solid rgba(255,215,140,0.22);
+}
+.timer-label {
+  font-size: 10px;
+  color: rgba(255,220,190,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.timer-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #f9d78c;
+  text-shadow: 0 0 12px rgba(249,215,140,0.4);
+  line-height: 1.1;
+}
+
 /* ===== Mobile ===== */
 @media (max-width: 600px) {
   .menu-buttons { width: 240px; }
   .enemy-grid { grid-template-columns: 1fr; }
   .hp-bar-bg { width: 80px; }
+  .mode-grid { grid-template-columns: 1fr; gap: 6px; }
+  .mode-option { padding: 8px 6px; }
+  .diff-option { padding: 6px 16px; font-size: 12px; }
 }

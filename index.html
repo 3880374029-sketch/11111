@@ -183,6 +183,41 @@ footer {
 }
 footer .hint { color: rgba(232,224,240,0.3); }
 
+/* ===== 登录态 ===== */
+.auth-bar {
+  position: absolute;
+  top: 18px; right: 18px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; z-index: 5;
+}
+.auth-user {
+  color: rgba(232,224,240,0.6);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 5px 14px; border-radius: 30px;
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.auth-btn {
+  padding: 5px 16px; border-radius: 30px;
+  border: 1px solid rgba(0,212,255,0.25);
+  background: rgba(0,212,255,0.08);
+  color: #00d4ff; font-size: 13px; text-decoration: none;
+  cursor: pointer; transition: 0.2s; font-family: inherit;
+}
+.auth-btn:hover { background: rgba(0,212,255,0.18); border-color: #00d4ff; }
+.auth-btn.ghost {
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(232,224,240,0.55);
+}
+.auth-btn.ghost:hover { color: #e8e0f0; border-color: rgba(255,255,255,0.25); }
+
+/* ===== 新游戏缩略图配色 ===== */
+.thumb.reaper   { background: linear-gradient(135deg, #2d1b4e, #7c4dff); box-shadow: 0 0 28px rgba(124,77,255,0.22), inset 0 0 0 1px rgba(255,255,255,0.08); }
+.thumb.navel    { background: linear-gradient(135deg, #4a1f2d, #e94560); box-shadow: 0 0 28px rgba(233,69,96,0.22), inset 0 0 0 1px rgba(255,255,255,0.08); }
+.thumb.darkfire { background: linear-gradient(135deg, #3d2b1f, #ff7b3d); box-shadow: 0 0 28px rgba(255,123,61,0.22), inset 0 0 0 1px rgba(255,255,255,0.08); }
+.thumb.fps      { background: linear-gradient(135deg, #1b3a2d, #4ecdc4); box-shadow: 0 0 28px rgba(78,205,196,0.22), inset 0 0 0 1px rgba(255,255,255,0.08); }
+
 /* ===== 窄屏 ===== */
 @media (max-width: 520px) {
   .game-card { padding: 15px; gap: 13px; }
@@ -190,12 +225,19 @@ footer .hint { color: rgba(232,224,240,0.3); }
   .info h2 { font-size: 17px; }
   .info .desc { font-size: 11.5px; }
   .arrow { display: none; }
-  header { margin-bottom: 24px; }
+  header { margin-bottom: 24px; padding-top: 30px; }
+  /* 窄屏下登录态缩小，避免与标题挤在一起 */
+  .auth-bar { top: 10px; right: 10px; gap: 6px; font-size: 12px; }
+  .auth-user { max-width: 110px; padding: 4px 10px; font-size: 11px; }
+  .auth-btn { padding: 4px 12px; font-size: 12px; }
 }
 </style>
 </head>
 <body>
 <div class="cover">
+  <!-- 登录态：由 auth.js 渲染（未登录显示"登录"，已登录显示邮箱 + 登出） -->
+  <div class="auth-bar" id="authBar"></div>
+
   <header>
     <span class="logo-mark">🎮</span>
     <h1>✦ 游戏合集</h1>
@@ -208,9 +250,9 @@ footer .hint { color: rgba(232,224,240,0.3); }
       <div class="thumb defender">🚀</div>
       <div class="info">
         <h2>星际守卫战</h2>
-        <p class="desc">纵版太空射击。敌机会开火还击，需要走位闪避弹幕；击落可掉落散射、护盾、维修道具，每 5 波迎战 Boss。</p>
+        <p class="desc">纵版太空射击。含经典战役 / 无尽 / 限时挑战三种模式，以及简单·普通·困难三档难度；敌机会开火还击，击落可掉落道具，按难度间隔迎战 Boss。</p>
         <div class="tags">
-          <span>射击</span><span>弹幕闪避</span><span>道具升级</span><span>Boss 战</span>
+          <span>射击</span><span>弹幕闪避</span><span>3 模式</span><span>3 难度</span><span>Boss 战</span>
         </div>
       </div>
       <span class="arrow">›</span>
@@ -228,13 +270,97 @@ footer .hint { color: rgba(232,224,240,0.3); }
       </div>
       <span class="arrow">›</span>
     </a>
+
+    <!-- 3D暗影收割者 -->
+    <a class="game-card" href="reaper.html">
+      <div class="thumb reaper">🌑</div>
+      <div class="info">
+        <h2>3D 暗影收割者</h2>
+        <p class="desc">3D 末日围城生存。在立体场景中迎战成群敌人，考验走位与资源分配。</p>
+        <div class="tags"><span>3D</span><span>生存</span><span>动作</span></div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+
+    <!-- 肚脐之战 -->
+    <a class="game-card" href="navel.html">
+      <div class="thumb navel">🎯</div>
+      <div class="info">
+        <h2>肚脐之战 · 进化版</h2>
+        <p class="desc">快节奏弹幕对抗，画面紧凑，考验反应与精准操作。</p>
+        <div class="tags"><span>弹幕</span><span>街机</span><span>反应</span></div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+
+    <!-- 暗火协议 -->
+    <a class="game-card" href="darkfire.html">
+      <div class="thumb darkfire">🔥</div>
+      <div class="info">
+        <h2>暗火协议 · 豪华版</h2>
+        <p class="desc">暗色战术射击，含关卡推进与武器强化，氛围硬核。</p>
+        <div class="tags"><span>射击</span><span>战术</span><span>关卡</span></div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
+
+    <!-- FPS -->
+    <a class="game-card" href="fps.html">
+      <div class="thumb fps">🔫</div>
+      <div class="info">
+        <h2>FPS · 掩体碰撞</h2>
+        <p class="desc">第一人称射击，支持掩体碰撞与手机适配，键鼠与触屏均可操作。</p>
+        <div class="tags"><span>FPS</span><span>掩体</span><span>手机适配</span></div>
+      </div>
+      <span class="arrow">›</span>
+    </a>
   </div>
 
   <footer>
-    <div class="hint">两个游戏均可直接在浏览器中运行，无需安装 · 支持桌面键鼠与移动端触屏</div>
+    <div class="hint">全部游戏可在浏览器中直接运行，无需安装 · 支持桌面键鼠与移动端触屏</div>
     <div>星际守卫战：方向键/WASD 移动，按住左键或空格射击，P/ESC 暂停</div>
     <div>星际幸存者：鼠标/触屏移动（自动射击），空格释放技能</div>
+    <div id="syncHint" style="margin-top:6px;color:rgba(232,224,240,0.25);"></div>
   </footer>
 </div>
+
+<!-- 依赖顺序：SDK → 配置 → 认证模块 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script>
+// 渲染右上角登录态
+(function () {
+  var bar = document.getElementById('authBar');
+  var hint = document.getElementById('syncHint');
+  if (!bar) return;
+
+  function render(user) {
+    if (!window.SUPABASE_ENABLED) {
+      // 未配置：明确告知，避免误以为登录功能坏了
+      bar.innerHTML = '<span class="auth-user">未启用云存档</span>';
+      if (hint) hint.textContent = '提示：在 config.js 填入 Supabase URL 与 anon key 后即可登录并同步成绩';
+      return;
+    }
+    if (user) {
+      var name = (user.email || '玩家');
+      bar.innerHTML =
+        '<span class="auth-user" title="' + name + '">👤 ' + name + '</span>' +
+        '<button class="auth-btn ghost" id="btnLogout">登出</button>';
+      document.getElementById('btnLogout').addEventListener('click', async function () {
+        await Auth.signOut();
+        location.reload();
+      });
+      if (hint) hint.textContent = '已登录：成绩会自动同步到云端';
+    } else {
+      bar.innerHTML = '<a class="auth-btn" href="login.html">登录 / 注册</a>';
+      if (hint) hint.textContent = '未登录：成绩仅保存在本机，登录后可在多设备间同步';
+    }
+  }
+
+  Auth.getUser().then(render);
+  Auth.onAuthStateChange(render);
+})();
+</script>
 </body>
 </html>
